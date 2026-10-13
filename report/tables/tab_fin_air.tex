@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering\small
+\caption{Accuracy learning curves on Financial PhraseBank and Twitter Airline Sentiment (mean$\pm$SD over three seeds).}\label{tab:fin_air}
+\resizebox{\linewidth}{!}{\begin{tabular}{llccccc}
+\toprule
+Domain & Model & $n_1$ & $n_2$ & $n_3$ & $n_4$ & $n_5$ (full) \\
+\midrule
+Finance & TF-IDF + LogReg & 71.7$\pm$1.0 & 73.7$\pm$1.7 & 79.3$\pm$0.6 & 84.6$\pm$1.4 & 87.3$\pm$0.0 \\
+Finance & TF-IDF + NaiveBayes & 72.3$\pm$1.2 & 74.8$\pm$1.9 & 79.2$\pm$0.9 & 85.2$\pm$1.1 & 83.2$\pm$0.0 \\
+Finance & Tiny-BERT (random init) & 68.9$\pm$1.6 & 72.8$\pm$2.5 & 80.9$\pm$1.1 & 86.5$\pm$0.2 & 87.2$\pm$1.0 \\
+Finance & Tiny-BERT (+MLM pre-training) & 69.5$\pm$0.2 & 70.0$\pm$1.2 & 77.4$\pm$1.9 & 83.7$\pm$1.2 & 86.5$\pm$1.1 \\
+Airline & TF-IDF + LogReg & 83.5$\pm$1.5 & 85.9$\pm$0.3 & 88.1$\pm$0.3 & 90.1$\pm$0.1 & 92.0$\pm$0.0 \\
+Airline & TF-IDF + NaiveBayes & 84.1$\pm$1.2 & 84.7$\pm$0.4 & 86.1$\pm$0.2 & 87.6$\pm$0.1 & 89.2$\pm$0.0 \\
+Airline & Tiny-BERT (random init) & 84.4$\pm$1.0 & 85.5$\pm$0.4 & 88.1$\pm$0.8 & 90.9$\pm$0.4 & 91.6$\pm$0.2 \\
+Airline & Tiny-BERT (+MLM pre-training) & 82.6$\pm$0.5 & 83.7$\pm$0.9 & 87.1$\pm$0.3 & 89.6$\pm$0.3 & 91.5$\pm$0.5 \\
+\bottomrule
+\end{tabular}}
+\end{table}

@@ -1,0 +1,20 @@
+\begin{table}[t]
+\centering\small
+\caption{Label-equivalence: number of TF-IDF+LogReg labels needed to match each model's accuracy (log-linear interpolation of the TF-IDF curve).}\label{tab:equiv}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcc}
+\toprule
+Model & $n{=}1000$ & $n{=}6920$ \\
+\midrule
+VADER lexicon (no task labels) & 840 & -- \\
+TF-IDF + NaiveBayes & 1,190 & $>$6,920 \\
+TF-IDF word + SVM & 1,010 & 5,720 \\
+TF-IDF char n-gram + LogReg & 1,260 & $>$6,920 \\
+word2vec (same 1.2M words) + LogReg & 590 & 740 \\
+fastText (same 1.2M words) + LogReg & 960 & 1,120 \\
+Tiny-BERT (random init) & 690 & 3,730 \\
+Tiny-BERT (+MLM pre-training) & 450 & 3,000 \\
+bert\_uncased\_L-2\_H-128\_A-2 & 2,040 & $>$6,920 \\
+distilbert-base-uncased & $>$6,920 & $>$6,920 \\
+\bottomrule
+\end{tabular}}
+\end{table}

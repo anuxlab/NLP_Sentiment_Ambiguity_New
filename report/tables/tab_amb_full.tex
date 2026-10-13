@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering\small
+\caption{Accuracy (\%) on strong- vs weak-polarity sentences, ambiguity-awareness AUROC (0.5 = chance), calibration error (ECE, \%; -- for score-only models) and accuracy on the 50\% most confident predictions; $n=6920$ labels, mean over 3 seeds (strong: 678 sentences, weak: 1\,143).}\label{tab:amb6920}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcccccc}
+\toprule
+Model & Acc.\ strong & Acc.\ weak & Gap & Ambiguity AUROC & ECE & Acc.@50\% cov. \\
+\midrule
+TF-IDF + LogReg & 88.1 & 77.3 & 10.7 & 0.617 & 4.4 & 94.0 \\
+TF-IDF char n-gram + LogReg & 88.9 & 77.2 & 11.8 & 0.622 & 2.8 & 92.3 \\
+TF-IDF word + SVM & 87.8 & 76.1 & 11.6 & 0.611 & -- & 93.6 \\
+VADER lexicon (no task labels) & 77.4 & 64.7 & 12.8 & 0.559 & -- & 78.5 \\
+fastText (same 1.2M words) + LogReg & 77.4 & 67.5 & 10.0 & 0.553 & 3.2 & 84.2 \\
+word2vec (same 1.2M words) + LogReg & 75.5 & 64.5 & 11.0 & 0.554 & 3.7 & 81.9 \\
+Tiny-BERT (random init) & 85.7 & 74.2 & 11.5 & 0.604 & 8.2 & 91.6 \\
+Tiny-BERT (+MLM pre-training) & 83.1 & 74.1 & 9.0 & 0.604 & 7.6 & 89.3 \\
+\bottomrule
+\end{tabular}}
+\end{table}

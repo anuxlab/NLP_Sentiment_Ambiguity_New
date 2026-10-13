@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering\small
+\caption{Full-budget accuracy by real ambiguity-related signal: finance uses 100\% vs 50--65\% annotator agreement; airline uses crowd-worker confidence $\geq0.9$ vs $<0.65$. AUROC measures whether model confidence identifies the low-signal stratum. Signal definitions differ by domain, so rows should not be compared as a common scale.}\label{tab:ambdomains}
+\resizebox{\linewidth}{!}{\begin{tabular}{lllcccc}
+\toprule
+Domain & Signal & Model & High-signal acc. (\%) & Low-signal acc. (\%) & AUROC & ECE (\%) \\
+\midrule
+Finance & Agreement & TF-IDF + LogReg & 90.9 & 84.2 & 0.584 & 4.7 \\
+Finance & Agreement & Tiny-BERT (random init) & 90.7 & 81.9 & 0.513 & 10.8 \\
+Finance & Agreement & Tiny-BERT (+MLM pre-training) & 89.7 & 83.6 & 0.454 & 10.3 \\
+Airline & Worker confidence & TF-IDF + LogReg & 96.0 & 77.5 & 0.685 & 2.6 \\
+Airline & Worker confidence & Tiny-BERT (random init) & 95.5 & 79.0 & 0.670 & 5.2 \\
+Airline & Worker confidence & Tiny-BERT (+MLM pre-training) & 95.3 & 79.0 & 0.659 & 4.4 \\
+\bottomrule
+\end{tabular}}
+\end{table}

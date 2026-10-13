@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering\small
+\caption{Change in accuracy (percentage points) relative to clean test, full training set.}\label{tab:drop}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcccc}
+\toprule
+Model & typos 10\% & typos 30\% & word-drop 20\% & word-drop 40\% \\
+\midrule
+TF-IDF + LogReg & -1.4 & -3.8 & -3.4 & -5.6 \\
+TF-IDF + NaiveBayes & -1.0 & -2.9 & -2.9 & -6.3 \\
+Tiny-BERT (random init) & -2.0 & -4.9 & -1.5 & -5.5 \\
+Tiny-BERT (+MLM pre-training) & -2.3 & -6.9 & -0.7 & -5.9 \\
+\bottomrule
+\end{tabular}}
+\end{table}

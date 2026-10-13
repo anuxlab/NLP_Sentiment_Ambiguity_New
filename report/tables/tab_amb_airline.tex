@@ -1,0 +1,28 @@
+\begin{table}[t]
+\centering\small
+\caption{Airline: accuracy on strong/weak (real_crowdworker_confidence) sentences, ambiguity AUROC and ECE.}\label{tab:ambairline}
+\resizebox{\linewidth}{!}{\begin{tabular}{rlcccc}
+\toprule
+$n$ & Model & Acc. strong & Acc. weak & AUROC & ECE \\
+\midrule
+1000 & tfidf_lr & 92.6 & 75.8 & 0.653 & 4.1 \\
+1000 & tfidf_nb & 90.8 & 73.9 & 0.653 & 6.9 \\
+1000 & tiny_scratch & 92.4 & 77.8 & 0.637 & 8.4 \\
+1000 & tiny_mlm & 91.8 & 74.2 & 0.622 & 11.3 \\
+1000 & vader_lexicon & 66.5 & 58.7 & 0.505 & -- \\
+1000 & tfidf_svm & 92.9 & 75.8 & 0.653 & -- \\
+1000 & tfidf_char_lr & 93.5 & 80.0 & 0.641 & 2.4 \\
+1000 & w2v_avg_lr & 90.6 & 74.6 & 0.610 & 2.9 \\
+1000 & fasttext_avg_lr & 91.6 & 75.4 & 0.601 & 2.6 \\
+8125 & tfidf_lr & 96.0 & 77.5 & 0.685 & 2.6 \\
+8125 & tfidf_nb & 93.4 & 76.1 & 0.678 & 5.4 \\
+8125 & tiny_scratch & 95.5 & 79.0 & 0.670 & 5.2 \\
+8125 & tiny_mlm & 95.3 & 79.0 & 0.659 & 4.4 \\
+8125 & vader_lexicon & 66.5 & 58.7 & 0.505 & -- \\
+8125 & tfidf_svm & 95.9 & 78.3 & 0.686 & -- \\
+8125 & tfidf_char_lr & 96.3 & 79.0 & 0.670 & 1.3 \\
+8125 & w2v_avg_lr & 92.1 & 75.4 & 0.614 & 1.4 \\
+8125 & fasttext_avg_lr & 92.5 & 74.6 & 0.611 & 1.1 \\
+\bottomrule
+\end{tabular}}
+\end{table}

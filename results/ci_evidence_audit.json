@@ -1,0 +1,171 @@
+{
+  "audit_schema": 1,
+  "generated_utc": "2026-10-13T17:54:33.748857+00:00",
+  "audit_scope": "saved records and generated assets only; no training or dataset download",
+  "status": "PASS",
+  "counts": {
+    "result_records": 258,
+    "family_records": 225,
+    "records_by_domain": {
+      "sst2": 98,
+      "finance": 80,
+      "airline": 80
+    },
+    "model_stage_record_counts": {
+      "sst2|pilot|tiny_scratch": 10,
+      "sst2|pilot|tiny_mlm": 10,
+      "sst2|curve|tfidf_lr": 15,
+      "sst2|curve|tfidf_nb": 15,
+      "sst2|curve|tiny_scratch": 15,
+      "sst2|curve|tiny_mlm": 15,
+      "sst2|ckpt|tiny_mlm": 18,
+      "finance|pilot|tiny_scratch": 10,
+      "finance|pilot|tiny_mlm": 10,
+      "finance|curve|tfidf_lr": 15,
+      "finance|curve|tfidf_nb": 15,
+      "finance|curve|tiny_scratch": 15,
+      "finance|curve|tiny_mlm": 15,
+      "airline|pilot|tiny_scratch": 10,
+      "airline|pilot|tiny_mlm": 10,
+      "airline|curve|tfidf_lr": 15,
+      "airline|curve|tfidf_nb": 15,
+      "airline|curve|tiny_scratch": 15,
+      "airline|curve|tiny_mlm": 15
+    }
+  },
+  "full_budget_three_seed_checks": [
+    {
+      "domain": "sst2",
+      "model": "tiny_mlm",
+      "budget": 6920,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "sst2",
+      "model": "tiny_scratch",
+      "budget": 6920,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "sst2",
+      "model": "tfidf_lr",
+      "budget": 6920,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "finance",
+      "model": "tiny_mlm",
+      "budget": 1377,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "finance",
+      "model": "tiny_scratch",
+      "budget": 1377,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "finance",
+      "model": "tfidf_lr",
+      "budget": 1377,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "airline",
+      "model": "tiny_mlm",
+      "budget": 8125,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "airline",
+      "model": "tiny_scratch",
+      "budget": 8125,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    },
+    {
+      "domain": "airline",
+      "model": "tfidf_lr",
+      "budget": 8125,
+      "records": 3,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "three_seed_complete": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "results/results.jsonl",
+      "bytes": 129998,
+      "sha256": "e9c69d9e84776e2f8066ae3c40111cf910ea9c01d180aba8169aff90b70e5be8"
+    },
+    {
+      "path": "results/families.jsonl",
+      "bytes": 104564,
+      "sha256": "b819ab25aed860a4cbe8a8a697713145bd83357272592d415b9d8382b5f4fb85"
+    },
+    {
+      "path": "report/tables/tab_cross_domain.tex",
+      "bytes": 2956,
+      "sha256": "adef8b6386c2fd698b09ccc620239095c6c2aa7fdc14178faac8a64dcebbf338"
+    },
+    {
+      "path": "report/tables/tab_fin_air_f1.tex",
+      "bytes": 1336,
+      "sha256": "6f51b22cd45f1600167e611c169cc2ab62f402b3afb9c6033cb26b168f6a704c"
+    }
+  ],
+  "errors": [],
+  "warnings": [],
+  "interpretation_limit": "A passing audit establishes record/schema/arithmetic consistency only. It does not validate the original training run, eliminate leakage, establish statistical significance, or replace an end-to-end reproduction."
+}

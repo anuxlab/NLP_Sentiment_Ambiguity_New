@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering\small
+\caption{Public pre-trained compact checkpoints fine-tuned with the same protocol (accuracy \%, mean$\pm$std over the seeds run).}\label{tab:hf}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcccccc}
+\toprule
+Checkpoint & Params (M) & $n$ & Clean & typos 30\% & word-drop 20\% & OOD IMDb \\
+\midrule
+bert\_uncased\_L-2\_H-128\_A-2 & 4.4 & 1000 & 75.0$\pm$2.0 & 70.3$\pm$0.6 & 72.4$\pm$1.9 & 68.3$\pm$0.6 \\
+bert\_uncased\_L-2\_H-128\_A-2 & 4.4 & 6920 & 81.7$\pm$0.0 & 74.6$\pm$0.5 & 78.9$\pm$0.2 & 69.1$\pm$1.4 \\
+distilbert-base-uncased & 66.4 & 1000 & 86.5$\pm$0.9 & 80.5$\pm$0.6 & 82.4$\pm$1.6 & 69.0$\pm$6.3 \\
+distilbert-base-uncased & 66.4 & 6920 & 90.4$\pm$0.2 & 83.9$\pm$0.3 & 85.5$\pm$0.1 & 72.8$\pm$1.6 \\
+\bottomrule
+\end{tabular}}
+\end{table}

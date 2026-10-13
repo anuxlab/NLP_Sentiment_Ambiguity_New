@@ -1,0 +1,328 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\graphicspath{{figures/}}
+\captionsetup{font=small,labelfont=bf}
+
+\title{\textbf{Same Words, Different Bets}\\[2pt]
+\large Lexicons, Static Embeddings and Contextual Pre-training for Sentiment Classification\\ under Scarce Labels and Ambiguity}
+\author{Project report}
+\date{\today}
+
+\setlength{\emergencystretch}{3em}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Everyone agrees that pre-trained transformers are powerful; far fewer studies ask how much small-scale pre-training is enough, how static embeddings compare when trained on the same unlabeled text, and how models behave across label budgets and uncertainty proxies. We also report VADER as a separate external baseline that uses no task labels and does not consume the corpus.
+We study binary sentiment classification (SST-2) with scarce labels (100--6\,920) on a CPU, comparing model families under one protocol: a sentiment lexicon that uses no task labels, word and character n-gram TF-IDF models,
+static word embeddings (word2vec, fastText) trained on the same 1.2\,M unlabeled words, a 1.17\,M-parameter BERT trained from scratch or after 13 minutes of masked-language-model (MLM) pre-training on those words, and public compact checkpoints (BERT-Tiny, DistilBERT).
+Beyond accuracy we measure robustness (typos, word deletion, out-of-domain reviews), calibration, and ``ambiguity-awareness'' using the fine-grained SST-5 labels as a polarity-strength proxy, cross-model consensus difficulty and contrast markers.
+\textbf{Findings.} (i) Small-scale MLM pre-training did \emph{not} help ($-0.3$ to $-4.5$ points vs.\ random initialisation), and its deficit sits mainly on \emph{strongly polar} sentences ($-4.7$ [$-7.2$,$-2.2$] vs.\ $-1.3$ [$-3.4$,$+0.8$] on weak-polarity sentences at $n{=}1000$; strong$-$weak difference $-3.5$ [$-6.7$,$-0.3$]).
+(ii) Among methods that consume the unlabeled corpus, fastText embeddings are the highest-scoring trainable option at 100--300 labels and beat MLM at $n{=}1000$ ($70.2\%$ vs.\ $65.7\%$), but plateau at $71.2\%$ while the transformers reach $77.5$--$78.5\%$ at $n{=}6920$. VADER is reported separately as an external zero-task-label baseline.
+(iii) TF-IDF variants are the strongest from-scratch models from 1\,000 labels on; character n-grams are the most typo-robust; the VADER lexicon reaches $69.4\%$ with zero task labels, worth about 840 TF-IDF labels.
+(iv) Transformers trained on few labels are badly overconfident (ECE $22.9$--$25.6\%$ vs.\ $3.1$--$6.4\%$ at $n{=}1000$) and no model's confidence tracks polarity strength well (ambiguity AUROC $\le0.62$; pre-training does not improve it).
+(v) Public checkpoints show that pre-training \emph{does} pay off at scale: BERT-Tiny, with the same depth and width as ours, reaches $75.0\%$ at $n{=}1000$, and DistilBERT $86.5\%$ and $90.4\%$.
+Our negative result applies to the tested small corpus (1.2\,M words), short CPU training schedule, tokenizer, and fine-tuning recipe; it should not be generalized to pre-training in general.
+(vi) Extending the study to two more domains -- Financial PhraseBank (finance news, real annotator-agreement tiers) and Twitter Airline Sentiment (social media, real crowd-worker confidence) -- confirms the pattern: fastText has a 3.2-point higher accuracy estimate than MLM pre-training at $n{=}100$ on airline (descriptive; the new paired-bootstrap script has not yet been run to regenerate its interval), and the full-data point estimates are close in the two new in-domain tasks, unlike SST-2 where TF-IDF keeps a clear accuracy edge. The paired-bootstrap script has been added but not run to regenerate finance/airline full-data intervals, so we do not claim statistical indistinguishability. Cross-domain transfer varies sharply by direction; TF-IDF trained on SST-2 reaches 62.7\% accuracy on finance, compared with 51.8--54.1\% for the tiny transformers.
+\end{abstract}
+
+\section{Introduction}
+Pre-trained transformers \cite{devlin2019bert} dominate NLP benchmarks, but practitioners who need models that run locally, with little memory and little labeled data, often turn to compact variants
+\cite{turc2019well,sanh2019distilbert,jiao2020tinybert,wang2020minilm}. Those models are pre-trained or distilled with very large corpora and compute. It is much less clear whether the pre-training recipe itself,
+applied at laptop scale, still pays off. We compare contextual MLM with static embeddings trained on the same unlabeled corpus, and include VADER as a separate external zero-task-label baseline that does not consume that corpus. We also study whether pre-training changes \emph{where} a model makes its mistakes.
+TF-IDF linear models remain strong sentiment baselines \cite{wang2012baselines}. This project is a controlled CPU-scale study addressing eight research questions; the archive includes the run logs and asset-generation scripts, while full reruns require dataset access:
+
+\begin{description}
+\item[RQ1 (data efficiency)] Does MLM pre-training on a small unlabeled in-domain corpus beat random initialisation and TF-IDF baselines when labels are scarce?
+\item[RQ2 (robustness)] How do the models cope with typos, dropped words and domain shift?
+\item[RQ3 (amount of pre-training)] How do downstream and linear-probe accuracy evolve with the number of pre-training steps?
+\item[RQ4 (efficiency)] What are model size, CPU latency and throughput, and what does INT8 quantization change?
+\item[RQ5 (public checkpoints)] How far do publicly available pre-trained compact models move the picture?
+\item[RQ6 (model families)] Which way of using the same unlabeled text (none, static embeddings, contextual MLM) works best at which label budget, and how do sparse, lexicon and neural families compare?
+\item[RQ7 (ambiguity)] Where do errors concentrate on ambiguous sentences, does pre-training change that, and do models' confidences reflect ambiguity?
+\item[RQ8 (cross-domain generalisation)] Do the RQ1/RQ6 findings hold in other domains, and how well does a model trained on one domain transfer to another?
+\end{description}
+
+\section{Related Work}
+BERT \cite{devlin2019bert} popularised MLM pre-training. Turc et al.\ \cite{turc2019well} study pre-trained compact
+BERTs (including the 2-layer/128-dim ``BERT-Tiny'') and show pre-training plus distillation is essential when models are
+small; DistilBERT \cite{sanh2019distilbert}, TinyBERT \cite{jiao2020tinybert} and MiniLM \cite{wang2020minilm} compress larger
+teachers. Gururangan et al.\ \cite{gururangan2020dont} show that continued in-domain pre-training helps
+large models. Linear bag-of-n-gram models with TF-IDF-style weighting remain strong for sentiment \cite{wang2012baselines}.
+Post-training dynamic quantization for BERT was explored e.g.\ by Zafrir et al.\ \cite{zafrir2019q8bert}. Our study
+differs in scale: the pre-training corpus is several orders of magnitude smaller than that of public checkpoints.
+
+\paragraph{Static embeddings, lexicons and classical models.} Word2vec \cite{mikolov2013efficient,mikolov2013distributed} and fastText \cite{bojanowski2017enriching} learn static word vectors from unlabeled text, the latter with sub-word information;
+VADER \cite{hutto2014vader} is an external rule-based lexicon model that needs no task labels and does not consume our unlabeled corpus; linear SVMs \cite{cortes1995support} and character n-gram features are standard baselines. We include them as alternative approaches, not as consumers of the same corpus.
+
+\paragraph{Ambiguity, disagreement and calibration.} Human annotators disagree systematically on many items \cite{pavlick2019inherent,nie2020can,plank2022problem}, evaluation should therefore not treat every label as unambiguous \cite{baan2022stop}, and
+training dynamics can single out ``ambiguous'' examples \cite{swayamdipta2020dataset}. Language models are also weak at handling ambiguity explicitly \cite{liu2023afraid}. Modern networks tend to be over-confident \cite{guo2017calibration}, although pre-trained transformers are often better calibrated in-domain than non-pre-trained ones \cite{desai2020calibration}.
+We do not propose a new ambiguity method; we use a graded human-derived signal (polarity strength) together with cross-model consensus and linguistic markers to ask how model families and pre-training scale behave on ambiguous inputs.
+
+\section{Experimental Setup}
+\subsection{Data}
+\textbf{SST-2} \cite{socher2013recursive}: 6\,920 / 872 / 1\,821 sentences (train / dev / test), binary polarity, lower-cased and tokenised, obtained from a public GitHub mirror.
+\textbf{NLTK \texttt{movie\_reviews}} \cite{pang2004sentimental}: 2\,000 IMDb reviews (1\,000 pos.\ / 1\,000 neg.), split \emph{by document}:
+1\,600 reviews (1.19\,M words) are used \emph{without labels} for MLM pre-training; 400 reviews are held out and used only as an \textbf{out-of-domain (OOD)} test set.
+Each held-out review is cut into up to eight 40-word chunks; chunk probabilities are averaged and the review is classified by the mean.
+SST-2 and IMDb differ in length and style (short critic snippets vs.\ long user reviews).
+
+Labeled budgets are $n\in\{100,300,1000,3000,6920\}$ sentences (stratified subsets; the same subset for every model given a seed; seeds $\{0,1,2\}$).
+At $n=6920$ the training set is identical across seeds, so seed variation reflects only initialisation and data order (and is exactly zero for the deterministic TF-IDF models).
+
+\textbf{Two more domains (RQ8).} \textbf{Financial PhraseBank} \cite{malo2014good} (CC-BY-NC-SA 3.0): finance news headlines with \emph{real} annotator-agreement tiers (not a proxy) -- 50--65\%, 66--99\%, 100\% agreement, verified by cross-checking three independent mirrors (zero label mismatches on 2\,259 overlapping sentences). Neutral sentences dropped, giving 1\,966 binary sentences (1\,377 / 196 / 394 train/dev/test, stratified, seed 42); budgets $n\in\{50,100,300,700,1377\}$.
+\textbf{Twitter US Airline Sentiment} (CrowdFlower/Kaggle origin): tweets with a \emph{real} per-tweet crowd-worker confidence score (continuous, 0.335--1.0). Neutral dropped, giving 11\,541 binary tweets (8\,125 / 1\,009 / 2\,407 train/dev/test); budgets $n\in\{100,300,1000,3000,8125\}$.
+Every model trained on one domain is also evaluated zero-shot on the other two domains' test sets (cross-domain transfer), at no extra training cost. Cross-domain accuracy and macro-F1 are recorded; these measures can diverge when class prevalence changes. \emph{Tiny-BERT +MLM} reuses the \emph{same} movie-review-pretrained checkpoint on every domain -- deliberately, to test whether pre-training on one domain transfers to fine-tuning on another; static embeddings and TF-IDF are refit fresh on each domain's own text. The pre-training-length ablation (RQ3) is sst2-only.
+
+\subsection{Models}
+\begin{itemize}
+\item \textbf{Tiny-BERT (ours)}: BERT encoder with 2 layers, hidden size 128, 2 heads, feed-forward size 512, a 6\,000-token WordPiece vocabulary trained on the pre-training corpus, maximum length 64; 1.17\,M parameters in total. Head: masked mean pooling $\rightarrow$ dropout 0.1 $\rightarrow$ linear.
+\emph{Random init} is this network fine-tuned from random weights; \emph{+MLM} is the same network after MLM pre-training.
+\item \textbf{TF-IDF + LogReg / NaiveBayes}: word 1--2-gram TF-IDF (sublinear tf); regularisation $C\in\{0.3,1,3,10,30\}$ or $\alpha\in\{0.1,0.3,1\}$ chosen on dev.
+\item \textbf{Public checkpoints} (RQ5, run through exactly the same fine-tuning code, head and evaluation sets): \texttt{google/bert\_uncased\_L-2\_H-128\_A-2} (``BERT-Tiny'', 4.4\,M parameters; the same 2-layer/128-dimensional transformer stack as ours, but a 30\,522-token vocabulary) and \texttt{distilbert-base-uncased} (66.4\,M parameters). Learning rates were $3\times10^{-4}$ and $5\times10^{-5}$ respectively and were \emph{not} tuned.
+\item \textbf{Other model families} (RQ6; identical subsets, dev-based selection and evaluation sets): (a) the \textbf{VADER} sentiment lexicon \cite{hutto2014vader}, rule-based, with no task labels (the sign of its compound score); (b) word 1--2-gram TF-IDF + \textbf{linear SVM} \cite{cortes1995support}; (c) \textbf{character} 2--5-gram (word-boundary) TF-IDF + logistic regression; (d) skip-gram \textbf{word2vec} and (e) \textbf{fastText} (100 dimensions, 5 epochs, both trained on the \emph{same 1.2\,M unlabeled words} as our MLM) with averaged word vectors + logistic regression. Regularisation is chosen on dev; embedding hyper-parameters were not tuned.
+\end{itemize}
+
+\subsection{MLM pre-training}
+Corpus text is tokenised, concatenated into blocks of 62 wordpieces plus \texttt{[CLS]}/\texttt{[SEP]} (22\,982 training and 1\,209 held-out blocks; 1.47\,M tokens per epoch).
+Standard BERT masking is used (15\% of tokens: 80\% \texttt{[MASK]}, 10\% random, 10\% unchanged), with the vocabulary projection computed only at masked positions.
+Optimiser: AdamW, learning rate $10^{-3}$, 6\% warm-up then linear decay, batch 128, weight decay 0.01, $\beta_2{=}0.98$, gradient clipping 1.0, \textbf{no dropout}, 5\,000 steps ($\approx$28 epochs, 13 minutes).
+During development, a first attempt with learning rate $2\times10^{-3}$ and dropout 0.1, and short schedules with learning rates $5\times10^{-4}$ and $10^{-3}$, stayed on the unigram plateau (loss $\approx6.15$);
+the final recipe (no dropout, lr $10^{-3}$, 5\,000 steps) leaves the plateau after roughly 1\,500 steps (Fig.~\ref{fig:pretrain}). Tiny-scale pre-training is thus sensitive to the recipe.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\linewidth]{fig_pretrain.pdf}
+\caption{MLM pre-training. Held-out loss falls from 8.2 to 4.35 (perplexity 77); masked-token accuracy reaches 29.1\%. Loss stays near the unigram entropy (about 6.1--6.2) for roughly the first 1\,500 steps.}
+\label{fig:pretrain}
+\end{figure}
+
+\subsection{Fine-tuning protocol}
+AdamW (weight decay 0.01), batch 32, 10\% warm-up then linear decay, a number of epochs equal to $600/(\text{steps per epoch})$ rounded up and clipped to $[5,30]$,, dropout 0.1; the epoch with the best dev accuracy is kept.
+The learning rate for each of our two initialisations was selected in a pilot on dev accuracy (five values from $2\times10^{-4}$ to $4\times10^{-3}$; seed 0, $n\in\{300,3000\}$; Table~\ref{tab:pilot}); the pilot chose $2\times10^{-4}$ for both (the lowest value in the grid).
+The test sets were used only for final evaluation.
+
+\subsection{Perturbations, metrics and environment}\label{sec:setupstats}
+Robustness is measured on the SST-2 test set perturbed by (a) swapping two adjacent inner characters in 10\% / 30\% of words (\emph{typos}), (b) deleting 20\% / 40\% of words (\emph{word-drop}); perturbed sets are generated once with a fixed seed so all models see identical inputs.
+We report accuracy and Macro-F1, mean $\pm$ standard deviation over 3 seeds, and paired bootstrap intervals for the SST-2 accuracy comparisons. Each bootstrap resamples test sentences after averaging paired per-sentence correctness differences over matched seeds; it quantifies test-example uncertainty conditional on those seeds, not retraining variability.
+All experiments ran on the CPU of a single laptop with Python 3.13, PyTorch 2.14 and Transformers 5.17.
+
+\subsection{Ambiguity signals and metrics}\label{sec:ambsetup}
+We use three complementary signals for the 1\,821 SST-2 test sentences.
+\textbf{(A1) Polarity strength} from the fine-grained SST-5 labels \cite{socher2013recursive} (all sentences matched, and 100\% are consistent with their binary label): \emph{strong} = very negative or very positive (678 sentences), \emph{weak} = negative or positive but mild, close to neutral (1\,143 sentences, 62.8\%). This is a graded-intensity proxy for ambiguity, \emph{not} annotator disagreement.
+\textbf{(A2) Consensus difficulty}: the fraction of the 27 runs of our nine core models that classify a sentence correctly; it checks that A1 is related to what is hard for models.
+\textbf{(A3) Linguistic markers}: sentences containing a contrast word (\emph{but, however, although, though, yet, despite, whereas, while}; 337 sentences) or negation (371 sentences).
+Per model and label budget we report accuracy on each stratum, mean confidence (maximum class probability), an \emph{ambiguity-awareness} AUROC (how well low confidence identifies weak-polarity sentences; 0.5 = chance), expected calibration error (ECE, 15 bins; only for models with probabilistic outputs), and accuracy on the 50\% most confident predictions.
+Differences between models inside a stratum use the paired bootstrap of Section~\ref{sec:setupstats}; an \emph{interaction} interval tests whether a difference is larger on strong than on weak sentences (strata resampled independently).
+
+\section{Results}
+\subsection{RQ1: data efficiency}
+Table~\ref{tab:main} and Fig.~\ref{fig:curve} (left) show the learning curves. All methods improve monotonically with $n$. At $n=100$ all models are within 2 points of each other.
+From $n\ge300$ MLM pre-training is \emph{worse} than random initialisation: $-4.5$, $-2.5$, $-2.3$ points at $n=300,1000,3000$ with 95\% intervals excluding zero (Table~\ref{tab:stats}); at $n=100$ ($-0.3$) and $n=6920$ ($-1.0$) the difference is not resolvable.
+TF-IDF is stronger than both transformers from $n\ge1000$ (random init: $-2.2$ to $-2.8$ points; pre-trained: $-3.9$ to $-4.8$ points, intervals exclude zero); at $n=300$ TF-IDF+LogReg still beats the pre-trained model by 4.4 points but ties random init.
+NaiveBayes is the best of our models at every budget.
+
+\input{tables/tab_main.tex}
+\input{tables/tab_stats.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_learning_curve.pdf}
+\caption{Learning curves (mean $\pm$ 1 std over 3 seeds). Left: SST-2 test. Right: held-out IMDb reviews (out-of-domain, 400 documents, binomial standard error $\approx2.4$ points).}
+\label{fig:curve}
+\end{figure}
+
+\subsection{RQ2: robustness and domain shift}
+Tables~\ref{tab:robust1000} and~\ref{tab:robust6920} and Fig.~\ref{fig:robust} give accuracy under perturbations. Relative to clean accuracy at $n=6920$ (Table~\ref{tab:drop}), character typos hurt the transformers more than TF-IDF
+($-4.9$ random init and $-6.9$ pre-trained vs.\ $-3.8$ / $-2.9$ for TF-IDF LogReg / NaiveBayes at 30\% typos), consistent with WordPiece fragmenting a mis-spelled word into unrelated pieces while TF-IDF simply loses one feature.
+Under word-dropping the picture reverses at the mild level (20\%: $-1.6$ and $-0.7$ for the transformers vs.\ $-3.4$ / $-2.9$ for TF-IDF), while at 40\% all models lose 5.6--6.3 points. TF-IDF nevertheless has the highest absolute accuracy under every perturbation.
+
+On the out-of-domain IMDb reviews the transformers trained from our small corpus are clearly behind TF-IDF, and pre-training does not help: at $n=1000$ the pre-trained model reaches $55.5\pm0.7$ vs.\ $58.6\pm4.2$ for random init; at $n=6920$ $63.7\pm1.4$ vs.\ $68.1\pm0.7$; TF-IDF reaches $67.9$--$69.7$ and $72.5$--$75.5$ respectively.
+For accuracy near 65\% on 400 documents, the binomial standard error is about 2.4 percentage points; this is not a 95\% confidence-interval margin. Seed variation is also material, so we avoid calling the smallest OOD gaps significant without paired uncertainty estimates.
+
+\input{tables/tab_robust_1000.tex}
+\input{tables/tab_robust_full.tex}
+\input{tables/tab_drop.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_robustness.pdf}
+\caption{Accuracy on clean, perturbed and out-of-domain test data for $n=1000$ (left) and $n=6920$ (right); error bars are 1 std over seeds.}
+\label{fig:robust}
+\end{figure}
+
+\subsection{RQ3: how much pre-training?}
+We fine-tuned ($n=1000$, learning rate $2\times10^{-4}$) checkpoints taken after 0, 100, 300, 1\,000, 2\,500 and 5\,000 MLM steps, and trained a logistic-regression probe on the \emph{frozen} mean-pooled encoder output (Table~\ref{tab:ckpt}, Fig.~\ref{fig:ckpt}).
+The frozen-representation probe improves slowly but steadily, from $56.4\pm0.7$ to $59.4\pm1.1$ (+3.0 points), so MLM does inject some sentiment-relevant information, but absolute probe accuracy stays low.
+Fine-tuned in-domain accuracy moves the opposite way: it decreases from $69.7\pm0.7$ (step 0, a random initialisation) to $65.7\pm0.9$ at 5\,000 steps (minimum $64.2\pm2.5$ at 1\,000 steps).
+OOD accuracy shows no trend ($58.5\pm4.5$ at step 0, $55.5\pm0.7$ at 5\,000). The step-0 checkpoint uses one fixed random initialisation for all three seeds whereas the curve entry draws a new one per seed, so the 1.5-point gap between the step-0 value and the ``random init'' curve entry ($68.2$) indicates the noise floor of comparisons of this size.
+These results describe under-trained pre-training (final MLM loss 4.35, masked accuracy 29\%).
+
+\input{tables/tab_ckpt.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\linewidth]{fig_ckpt.pdf}
+\caption{Pre-training length ablation ($n=1000$; mean $\pm$ std over 3 seeds). Step 0 is drawn at 30 for the log axis.}
+\label{fig:ckpt}
+\end{figure}
+
+\subsection{RQ4: efficiency}
+Table~\ref{tab:eff} and Fig.~\ref{fig:eff} report single-sentence CPU latency, batch-64 throughput and size for the seed-0 full-data models. The tiny BERT weighs 4.7\,MB (FP32), answers one sentence in about 1.0\,ms and processes about 5\,000 sentences/s.
+TF-IDF+LogReg is cheaper and more accurate: 0.31\,ms per sentence (3.3$\times$ faster), 48\,k sentences/s, 2.7\,MB and 81.3\% accuracy (vs.\ 78.3\% and 76.1\% for the random-init and pre-trained tiny BERT; single models).
+PyTorch INT8 dynamic quantization of the linear layers reduced the file size by 25\% (4.71 to 3.54\,MB; embeddings stay FP32) and left accuracy essentially unchanged ($76.1\to75.9$\%; a single model, so the 0.2-point difference is within noise). Its measured latency and throughput are listed in Table~\ref{tab:eff}.
+For scale, fine-tuning on the full training set took 37\,s for our tiny BERT, 42\,s for BERT-Tiny and about 26\,minutes for DistilBERT on this CPU (Section~\ref{sec:hf}); latency of the public checkpoints was not measured.
+
+\input{tables/tab_eff.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.7\linewidth]{fig_efficiency.pdf}
+\caption{Accuracy vs.\ single-sentence CPU latency (marker area proportional to model size).}
+\label{fig:eff}
+\end{figure}
+
+\subsection{RQ5: public pre-trained checkpoints}\label{sec:hf}
+Table~\ref{tab:hf} and Fig.~\ref{fig:hf} add two public checkpoints under the same protocol. BERT-Tiny, whose transformer stack has the same depth and width as ours, is far better than our pre-trained model at small $n$:
+$75.0\pm2.0\%$ at $n=1000$ (vs.\ $65.7\%$ ours pre-trained, $68.2\%$ ours random init, $70.5\%$ TF-IDF LogReg) and $81.7\%$ at $n=6920$, on par with TF-IDF (81.3\%) and 3--4 points above our models.
+DistilBERT is best by a wide margin: $86.5\pm0.9\%$ and $90.4\pm0.2\%$, i.e.\ +16 and +9 points over TF-IDF. Pre-training therefore \emph{does} help decisively, but only with far more pre-training than we could run here.
+The picture for robustness is more mixed: at $n=6920$, 30\% typos cost BERT-Tiny 7.1 and DistilBERT 6.5 points (vs.\ 3.8 for TF-IDF LogReg), and 20\% word-dropping costs 2.8 and 4.9 points.
+Out of domain, neither public model beats TF-IDF: BERT-Tiny obtains $68.3$/$69.1\%$ and DistilBERT $69.0\pm6.3$/$72.8\pm1.6\%$ (at $n=1000$/$6920$) against $67.9$--$69.7$ / $72.5$--$75.5\%$ for TF-IDF, and DistilBERT's OOD accuracy varies by up to 15 points across seeds at $n=1000$ (60.5, 75.5, 71.0\%).
+Confidence intervals for public vs.\ TF-IDF differences were not computed because predictions of these runs were not retained.
+
+\input{tables/tab_hf.tex}
+% Optional (appear after running hf_benchmark.py for more models and make_assets.py):
+\IfFileExists{tables/tab_hf_eff.tex}{\input{tables/tab_hf_eff.tex}}{}
+\IfFileExists{tables/tab_hf_stats.tex}{\input{tables/tab_hf_stats.tex}}{}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_hf.pdf}
+\caption{SST-2 accuracy vs.\ parameter count for our tiny BERTs, the public checkpoints (stars) and TF-IDF (dashed line); error bars are 1 std over seeds.}
+\label{fig:hf}
+\end{figure}
+
+\subsection{RQ6: model families and ways of using the same text}\label{sec:families}
+Table~\ref{tab:families} and Fig.~\ref{fig:families} compare families under one protocol. Three patterns stand out.
+
+\emph{The best use of unlabeled text depends on the label budget.} fastText trained on our 1.2\,M unlabeled words has the highest mean accuracy of all models at 100 and 300 labels ($60.2\%$ and $66.4\%$ vs.\ $58.6\%$ and $65.1\%$ for the best TF-IDF variant), is $4.5$ points above MLM pre-training at $n{=}1000$ ($70.2\%$ vs.\ $65.7\%$) and $2.0$ above random init ($68.2\%$), but then plateaus ($70.7\%$ at 3\,000, $71.2\%$ at 6\,920) while the transformers keep improving ($75.2$--$78.5\%$ and $72.9$--$77.5\%$). The crossover with the transformers lies between 1\,000 and 3\,000 labels.
+The stratified bootstrap of Section~\ref{sec:ambiguity} agrees: at $n{=}1000$, +MLM trails fastText on strong ($-6.0$ [$-9.1$,$-2.9$]) and weak ($-3.6$ [$-6.3$,$-0.9$]) sentences, while at $n{=}6920$ it is ahead by $+5.7$ and $+6.6$ points. Word2vec behaves similarly but lower ($67.2\%$ and $68.6\%$); the sub-word model is $\approx3$ points better.
+The static families are cheap: training took under one second per run (excluding a one-off embedding fit).
+
+\emph{A lexicon with no task labels is a strong anchor.} VADER reaches $69.4\%$ with zero task labels, more than both of our transformers with 1\,000 labels ($68.2\%$, $65.7\%$) and equivalent to about 840 TF-IDF labels (Table~\ref{tab:equiv}). It is the least robust out of domain ($59.8\%$), which is unsurprising for a lexicon built for social-media text.
+
+\emph{Character n-grams buy typo robustness.} They give the best classical accuracy at $n{=}1000$ ($71.9\%$) and $78.7\%$ under 30\% typos at $n{=}6920$ (a 2.8-point drop vs.\ 3.8 for word TF-IDF and 7.1 for BERT-Tiny), but are weaker out of domain ($70.8\%$ vs.\ $72.5$--$75.5\%$). A linear SVM on word TF-IDF is indistinguishable from logistic regression ($70.5\%$, $80.5\%$).
+
+\input{tables/tab_families.tex}
+\input{tables/tab_equiv.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_families.pdf}
+\caption{Model families. Left: learning curves (stars: public checkpoints at $n{=}1000$ and $6920$; dashed line: VADER, independent of $n$). Right: clean, 30\%-typo and out-of-domain accuracy at $n{=}6920$ (VADER at its label-free accuracy); bar colours as in the legend.}
+\label{fig:families}
+\end{figure}
+
+\subsection{RQ7: ambiguity}\label{sec:ambiguity}
+\paragraph{Does the proxy mean anything?} Sentences that few of the 27 core runs classify correctly are mostly weakly polar: $79.6\%$ ($n{=}1000$) and $81.5\%$ ($n{=}6920$) of the ``hard'' group are weak, versus $62.8\%$ overall and $55.4\%$--$56.7\%$ of the ``easy'' group (Table~\ref{tab:ambvalid}); the Spearman correlation between consensus difficulty and polarity strength is $0.21$ and $0.23$. The proxy is thus modestly but consistently related to what is hard for models.
+
+\paragraph{Everyone struggles with weak polarity.} All models are 8--13 points less accurate on weak than on strong sentences (Tables~\ref{tab:amb1000}, \ref{tab:amb6920}; Fig.~\ref{fig:ambiguity}).
+
+\paragraph{Where the pre-training deficit lies.} At $n{=}1000$ the MLM-pre-trained model is worse than its random-init twin by $4.7$ points on strong sentences ($[-7.2,-2.2]$) but only $1.3$ on weak ones ($[-3.4,+0.8]$, includes 0); the interaction, $-3.5$ [$-6.7$,$-0.3$], excludes zero (Table~\ref{tab:ambci}). At $n{=}6920$ the pattern is the same ($-2.6$ [$-4.8$,$-0.2$] vs.\ $-0.1$ [$-2.2$,$+1.9$]) but the interaction, $-2.4$ [$-5.6$,$+0.4$], is not resolved. The deficit estimate is larger on the strong-polarity stratum; the weak-polarity estimate is inconclusive. Because polarity strength is only an intensity proxy, we do not interpret this as direct evidence about human-perceived ambiguity.
+
+\paragraph{Contrast and negation.} Contrast words occur in 18.5\% of the sentences and 76.3\% of those are weakly polar (59.7\% otherwise). Every model is less accurate on them at $n{=}6920$: TF-IDF LR $75.4\%$ vs.\ $82.7\%$, random init $75.3\%$ vs.\ $79.2\%$, +MLM $74.1\%$ vs.\ $78.2\%$, character LR $78.0\%$ vs.\ $82.3\%$, and the bag-of-embeddings fastText model $65.0\%$ vs.\ $72.6\%$.
+The from-scratch transformer \emph{ties} TF-IDF on contrast sentences ($-0.1$ [$-4.3$,$+3.9$]) while trailing it on all others ($-3.5$ [$-5.4$,$-1.6$]), and it beats fastText on contrast sentences by $+10.3$ [$+5.3$,$+15.0$] points (vs.\ $+6.6$ elsewhere). This is consistent with contextual models coping better with compositional sentences, but the intervals for the contrast stratum are wide and we did not test the difference between strata.
+
+\paragraph{Do confidences reflect ambiguity?} Barely. The ambiguity-awareness AUROC ranges from $0.545$ to $0.622$ (chance: 0.5): highest for character LR ($0.622$) and word LR ($0.617$) at $n{=}6920$, $0.604$ for both transformers, and $0.553$--$0.559$ for the lexicon and static embeddings; pre-training does not improve it ($0.604$ vs.\ $0.604$ at $n{=}6920$; $0.545$ vs.\ $0.561$ at $n{=}1000$).
+At $n{=}1000$ the random-init transformer's mean confidence is $0.943$ on strong and $0.931$ on weak sentences (gap $0.012$) against $0.719$ vs.\ $0.683$ (gap $0.036$) for TF-IDF LR. Calibration is far worse for the transformers at small $n$ (ECE $25.6\%$ random init, $22.9\%$ pre-trained vs.\ $3.1$--$6.4\%$ for TF-IDF, character and static models), improving to $8.2\%$ and $7.6\%$ at $n{=}6920$ (others $2.8$--$5.1\%$).
+Consequently, an abstention rule that keeps the 50\% most confident predictions is more accurate for TF-IDF ($82.2\%$ at $n{=}1000$, $94.0\%$ at $n{=}6920$) than for the transformers ($78.8/74.8\%$ and $91.6/89.3\%$). The public checkpoints are not part of this analysis because predictions were not stored for the earlier runs (\texttt{hf\_benchmark.py --rerun} regenerates them).
+
+\input{tables/tab_amb_valid.tex}
+\input{tables/tab_amb_1000.tex}
+\input{tables/tab_amb_full.tex}
+\input{tables/tab_amb_ci.tex}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_ambiguity.pdf}
+\caption{Ambiguity. Left: accuracy on strong- vs.\ weak-polarity sentences at $n{=}6920$. Right: ambiguity-awareness AUROC (how well low confidence identifies weak-polarity sentences; dashed line = chance).}
+\label{fig:ambiguity}
+\end{figure}
+
+\input{tables/tab_pilot.tex}
+
+\subsection{RQ8: cross-domain generalisation}\label{sec:crossdomain}
+\paragraph{Do the RQ1/RQ6 findings replicate?} Table~\ref{tab:fin_air} gives the learning curves for both new domains. In finance, the mean accuracy is slightly higher for +MLM at $n{=}50$ (69.5\% vs.\ 68.9\%), but lower from $n{=}100$ onward; the gap narrows to 0.7 points at the full budget (86.5\% vs.\ 87.2\%). This is a descriptive pattern, not a significance claim. In airline, +MLM trails random initialization by about 1.8 points at $n{=}100$ (82.6\% vs.\ 84.4\%), while fastText has a higher point estimate than +MLM. The new paired-bootstrap script has not yet been run to regenerate the previously reported intervals for these domain/budget comparisons, so these remain descriptive.
+\emph{Unlike SST-2}, the full-data point estimates for TF-IDF, random initialization, and +MLM are close in the two new domains. However, the new paired-bootstrap script has not yet been run to regenerate finance/airline full-data intervals, so we do not claim statistical indistinguishability or equivalence. One plausible reason for the pattern is that finance and airline are more lexicon-driven (sentiment words like ``profit'' or ``delay'' carry more of the signal); this explanation has not been tested directly.
+Class balance differs sharply by domain (SST-2 $\approx$50/50, finance 69\% positive, airline 80\% negative), so Table~\ref{tab:fin_air} should be read alongside the Macro-F1 learning curves in Table~\ref{tab:finairf1}, rather than accuracy alone.
+
+\input{tables/tab_fin_air.tex}
+
+\input{tables/tab_fin_air_f1.tex}
+
+\input{tables/tab_cross_domain.tex}
+
+\paragraph{Real ambiguity-related signals across domains.} Table~\ref{tab:ambdomains} complements the SST-5 polarity-strength proxy with two dataset-provided signals. In finance, moving from 100\% agreement to the 50--65\% agreement tier lowers full-budget accuracy by 6.1--8.8 points for the three core models. In airline tweets, moving from crowd-worker confidence $\geq0.9$ to $<0.65$ lowers accuracy by 16.3--18.5 points. Confidence-based AUROC is also domain-dependent (0.454--0.584 in finance versus 0.659--0.685 in airline). These signals have different definitions and should not be treated as a shared cross-domain ambiguity scale.
+
+\input{tables/tab_amb_domain_summary.tex}
+
+\paragraph{Cross-domain transfer.} Table~\ref{tab:cross} and Fig.~\ref{fig:cross} evaluate every full-data model, zero-shot, on the other two domains. Cross-domain degradation is direction-dependent rather than uniformly large. For random-initialized Tiny BERT, SST-2$\to$airline drops 4.7 accuracy points (78.5\% to 73.8\%), while airline$\to$SST-2 drops 35.1 points (91.6\% to 56.5\%). TF-IDF trained on finance drops 60.5 points on airline (87.3\% to 26.8\%). Because class prevalence differs substantially across domains, accuracy should be read alongside macro-F1. TF-IDF trained on SST-2 reaches 62.7\% on finance and 75.3\% on airline; the two tiny transformers reach 51.8--52.3\% on finance and 68.3--73.8\% on airline, consistent with Section~\ref{sec:families}'s finding that sparse lexical features generalise more predictably than a small transformer's learned representation.
+Transfer between finance and airline is particularly weak (26.8--47.2\% accuracy). These values must be compared with the target domain's majority-class baseline (about 69\% positive in finance and 80\% negative in airline), not only a 50\% reference for balanced data. The pattern is consistent with source-domain class-prior and vocabulary mismatch, but the present experiments do not isolate their contributions. MLM effects are heterogeneous: relative to random initialization, they range from a 5.5-point accuracy reduction on SST-2$\to$airline to an 11.6-point increase on finance$\to$airline, with substantial seed variability in some cells; this should be treated as exploratory.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_cross_domain.pdf}
+\caption{Cross-domain transfer matrix: full-data models trained on one domain (rows), tested on all three (columns). Neural results are means across three seeds; TF-IDF is deterministic for a fixed split. Diagonal = in-domain.}
+\label{fig:cross}
+\end{figure}
+
+\section{Discussion}
+\textbf{Same words, different bets.} Given 1.2\,M unlabeled words, three bets are possible: ignore them (TF-IDF, lexicon), distil them into static vectors (word2vec/fastText), or learn a contextual model by MLM. Our data say the best bet depends on the label budget: static vectors win with a few hundred labels, sparse features and from-scratch transformers win later, and contextual pre-training at this scale never came out ahead.
+A lexicon with no task labels is already worth about 840 labels, which puts the ``cost'' of the neural options in perspective.
+
+\textbf{Why did our pre-training not help?} The public-checkpoint comparison is consistent with a benefit from large-scale pre-training, but does not isolate scale from vocabulary, corpus composition, and training recipe: BERT-Tiny shares depth and width but differs on those other factors.
+Plausible contributors are the tiny corpus and compute (final masked accuracy 29\%), the domain gap between long IMDb reviews and short critic snippets, and the limited capacity of a 1.17\,M-parameter model. Frozen-probe accuracy increases overall with an intermediate dip, while fine-tuned accuracy falls under the tested recipe. This suggests a possible probe/fine-tuning mismatch, but does not establish that pretrained weights are generally a better representation. Both learning-rate pilots chose the lowest grid value, so better-tuned optimisation might change the result; this remains untested.
+
+\textbf{What the ambiguity analysis adds.} At $n=1000$, the estimated pre-training deficit is larger in the strong-polarity stratum; the weak-stratum estimate is negative but its confidence interval includes zero, so it is inconclusive. Strong/weak polarity is an intensity proxy, not direct human annotator disagreement. Confidence is a weak detector of this proxy (SST-2 AUROC $\le0.62$), and transformers are overconfident at small label budgets.
+For deployment this suggests that raw confidences of small fine-tuned transformers should not be used to flag ambiguous inputs without recalibration, and that TF-IDF-style models give more trustworthy abstention at small $n$.
+
+\textbf{Practical guidance.} With a CPU, a few hundred labels and unlabeled in-domain text: fastText features; with a few thousand: TF-IDF (word or character) or a from-scratch transformer that is no better; with a public checkpoint: BERT-Tiny matches TF-IDF at full data and is about twice as label-efficient at 1\,000 labels, and DistilBERT is decisively better but takes about 26 minutes to fine-tune here. Character n-grams for noisy text. Do not trust small-$n$ transformer confidences.
+
+\textbf{Does any of this generalise?} Extending RQ1 and RQ6 to finance news and airline tweets replicates the low-budget story (fastText/cheaper features beat MLM pre-training) but not the full-data story: on SST-2, TF-IDF keeps a significant edge even at 6\,920 labels, while the full-data point estimates are close in the two new domains; the new paired-bootstrap script has not yet been run to regenerate full-data intervals for those domains, so we do not claim equivalence. Cross-domain results are directional: for random-initialized Tiny BERT, SST-2$\to$airline drops 4.7 accuracy points, while airline$\to$SST-2 drops 35.1 points; TF-IDF finance$\to$airline drops 60.5 points. These are descriptive estimates, and macro-F1 should be considered alongside accuracy because class prevalence differs substantially across domains.
+
+\subsection*{Limitations}
+\begin{itemize}
+\item \textbf{One task, one dataset, one language} (SST-2 sentiment in English, with IMDb reviews as the only shift). Conclusions about model families and ambiguity may not transfer.
+\item \textbf{Ambiguity proxies.} Polarity strength (SST-5) measures intensity, not annotator disagreement; ``weak'' covers 62.8\% of sentences; the linguistic markers are crude. The consensus signal is built from the same models it is used to analyse, so it only serves as a validity check.
+\item \textbf{Only two public checkpoints} (BERT-Tiny, DistilBERT) in the main results, with untuned learning rates; their predictions were not stored, so they are absent from the ambiguity/calibration analysis and from paired tests. The code supports BERT-Mini/Small/Medium, MiniLM, TinyBERT and ELECTRA-small (\texttt{hf\_benchmark.py}), but they were not run.
+\item \textbf{Untuned families.} Embedding dimension, epochs and pooling (simple averaging) were fixed; CNN/BiLSTM models were not included.
+\item Three seeds; full 872-sentence dev set for early stopping even at $n=100$; a learning-rate pilot with two sizes and one seed whose selected value lies at the grid edge; a small OOD set (400 documents).
+\item Efficiency numbers are single-thread measurements for one model per configuration on one machine. The lightweight families and post-hoc analyses are deterministic scripts that can be regenerated in minutes.
+\item Cross-domain neural estimates use three seeds, but some cells show substantial between-seed variability; the transfer analysis is exploratory. The default \texttt{run\_all.sh} runs SST-2, while finance/airline runs are separate documented commands.
+\item \textbf{Finance and airline test sets are class-imbalanced} (69\% positive, 80\% negative respectively, vs.\ near-balanced SST-2); accuracy comparisons across domains should be read alongside macro-F1.
+\end{itemize}
+
+\section{Conclusion}
+Under the tested configuration, contextual MLM pre-training on 1.2\,M unlabeled words with 13 CPU-minutes did not outperform random initialization at the tested label budgets: it did not beat random initialisation, static fastText vectors beat it with up to 1\,000 labels, and TF-IDF variants beat it from 300 labels on.
+At $n=1000$, the estimated deficit is larger on strong-polarity examples, while the weak-polarity estimate is inconclusive. Public checkpoints perform better, but their scale comparison is confounded by vocabulary and recipe differences.
+All models, transformers most of all when trained on few labels, are poor at flagging ambiguity through their confidence. Extending the study to finance news and airline tweets shows the small-budget pattern generalises (fastText has a higher point estimate than MLM at low label budgets) while the full-data pattern does not (TF-IDF's large SST-2 edge is much smaller in point estimates on the new domains), and that cross-domain transfer can be costly in some directions but is not uniformly so. The cross-domain estimates should be interpreted with macro-F1 and seed variation, not accuracy alone. Natural next steps are more public checkpoints with tuned learning rates and stored predictions (so that the ambiguity analysis can be extended across a size ladder), annotator-disagreement data as a stronger ambiguity signal, and a larger in-domain corpus.
+
+\section*{Reproducibility}
+Code, logs, per-run results (\path{results/results.jsonl}, \path{families.jsonl}, \path{hf_results.jsonl}, \path{all_runs.csv}), saved predictions, and asset-generation scripts (\path{src/make_assets.py}, \path{src/ambiguity.py}) are included; see \path{README.md}.
+Logged warnings about missing \texttt{blake2} hash functions come from the Python installation and do not affect any result.
+
+\bibliographystyle{plain}
+\bibliography{refs}
+
+\end{document}

@@ -1,0 +1,28 @@
+\begin{table}[t]
+\centering\small
+\caption{Finance: accuracy on strong/weak (real_annotator_agreement_tier) sentences, ambiguity AUROC and ECE.}\label{tab:ambfinance}
+\resizebox{\linewidth}{!}{\begin{tabular}{rlcccc}
+\toprule
+$n$ & Model & Acc. strong & Acc. weak & AUROC & ECE \\
+\midrule
+300 & tfidf_lr & 80.0 & 74.9 & 0.457 & 7.4 \\
+300 & tfidf_nb & 79.8 & 77.8 & 0.466 & 6.4 \\
+300 & tiny_scratch & 81.5 & 80.7 & 0.439 & 17.6 \\
+300 & tiny_mlm & 76.2 & 76.0 & 0.410 & 19.6 \\
+300 & vader_lexicon & 67.4 & 52.6 & 0.613 & -- \\
+300 & tfidf_svm & 80.8 & 74.9 & 0.466 & -- \\
+300 & tfidf_char_lr & 81.7 & 78.9 & 0.405 & 7.4 \\
+300 & w2v_avg_lr & 63.6 & 69.0 & 0.368 & 6.2 \\
+300 & fasttext_avg_lr & 63.6 & 69.6 & 0.307 & 6.8 \\
+1377 & tfidf_lr & 90.9 & 84.2 & 0.584 & 4.7 \\
+1377 & tfidf_nb & 84.6 & 78.9 & 0.471 & 7.5 \\
+1377 & tiny_scratch & 90.7 & 81.9 & 0.513 & 10.8 \\
+1377 & tiny_mlm & 89.7 & 83.6 & 0.454 & 10.3 \\
+1377 & vader_lexicon & 67.4 & 52.6 & 0.613 & -- \\
+1377 & tfidf_svm & 91.4 & 84.2 & 0.585 & -- \\
+1377 & tfidf_char_lr & 89.7 & 84.2 & 0.503 & 6.5 \\
+1377 & w2v_avg_lr & 68.0 & 71.9 & 0.325 & 5.4 \\
+1377 & fasttext_avg_lr & 68.0 & 68.4 & 0.274 & 7.6 \\
+\bottomrule
+\end{tabular}}
+\end{table}

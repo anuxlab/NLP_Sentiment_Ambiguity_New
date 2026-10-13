@@ -1,0 +1,44 @@
+name: Saved Evidence Audit
+
+# This workflow audits existing records. It deliberately does not train models
+# or download datasets, so it cannot silently replace measured results.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 3 * * 1' # Mondays at 03:20 UTC
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saved-evidence-audit
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install analysis dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest tabulate
+      - name: Validate code and archived claims
+        run: |
+          python -m py_compile src/*.py tests/*.py ci/*.py
+          pytest -q tests
+          python ci/audit_evidence.py --output results/evidence_audit.json
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: saved-evidence-audit-${{ github.run_id }}
+          path: results/evidence_audit.json
+          if-no-files-found: warn
+          retention-days: 90

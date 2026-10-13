@@ -1,0 +1,10 @@
+torch>=2.2
+transformers>=4.40
+tokenizers>=0.19
+scikit-learn>=1.3
+numpy
+pandas
+matplotlib
+scipy
+gensim>=4.3
+vaderSentiment>=3.3

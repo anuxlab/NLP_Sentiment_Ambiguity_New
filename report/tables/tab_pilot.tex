@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering\small
+\caption{Learning-rate pilot: dev accuracy (\%) (seed 0). The rate with the best mean over the two sizes is used in all later experiments.}\label{tab:pilot}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcccccc}
+\toprule
+Model & $n$ & 2e-4 & 5e-4 & 1e-3 & 2e-3 & 4e-3 \\
+\midrule
+Tiny-BERT (random init) & 300 & 63.3 & 63.5 & 63.3 & 62.3 & 63.0 \\
+Tiny-BERT (random init) & 3000 & 76.3 & 74.7 & 74.3 & 72.8 & 70.5 \\
+Tiny-BERT (+MLM pre-training) & 300 & 63.0 & 62.0 & 61.6 & 62.0 & 59.2 \\
+Tiny-BERT (+MLM pre-training) & 3000 & 74.2 & 74.8 & 74.8 & 71.7 & 62.6 \\
+\bottomrule
+\end{tabular}}
+\end{table}

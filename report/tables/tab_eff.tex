@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering\small
+\caption{Efficiency on a single CPU thread (seed-0 models trained on the full training set).}\label{tab:eff}
+\resizebox{\linewidth}{!}{\begin{tabular}{lccccccc}
+\toprule
+Model & Params (M) & Size (MB) & Lat. mean (ms) & Lat. p95 (ms) & Sent./s (bs 64) & Acc. & Acc. typo30 \\
+\midrule
+Tiny-BERT scratch, FP32 & 1.17 & 4.71 & 1.03 & 1.18 & 4914 & 78.3 & 73.1 \\
+Tiny-BERT +MLM, FP32 & 1.17 & 4.71 & 1.02 & 1.18 & 5073 & 76.1 & 68.0 \\
+Tiny-BERT +MLM, INT8 dyn. & 1.17 & 3.54 & 1.71 & 1.99 & 3196 & 75.9 & 68.0 \\
+TF-IDF + LogReg & 0.08 & 2.72 & 0.31 & 0.34 & 48388 & 81.3 & 77.5 \\
+\bottomrule
+\end{tabular}}
+\end{table}

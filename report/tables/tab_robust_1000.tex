@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering\small
+\caption{Accuracy (\%) under input perturbations and on out-of-domain IMDb documents, models trained on $n=1000$ sentences.}\label{tab:robust1000}
+\resizebox{\linewidth}{!}{\begin{tabular}{lcccccc}
+\toprule
+Model & clean & typos 10\% & typos 30\% & word-drop 20\% & word-drop 40\% & OOD IMDb \\
+\midrule
+TF-IDF + LogReg & 70.5$\pm$0.7 & 69.7$\pm$0.4 & 68.4$\pm$1.5 & 69.3$\pm$1.0 & 67.2$\pm$1.1 & 67.9$\pm$1.3 \\
+TF-IDF + NaiveBayes & 71.6$\pm$0.7 & 70.7$\pm$1.3 & 69.1$\pm$0.1 & 70.7$\pm$1.2 & 68.7$\pm$0.5 & 69.7$\pm$2.0 \\
+Tiny-BERT (random init) & 68.2$\pm$1.3 & 67.0$\pm$1.0 & 64.6$\pm$0.3 & 67.2$\pm$1.5 & 64.8$\pm$1.7 & 58.6$\pm$4.2 \\
+Tiny-BERT (+MLM pre-training) & 65.7$\pm$0.9 & 64.0$\pm$1.2 & 60.9$\pm$1.2 & 64.7$\pm$0.9 & 62.1$\pm$1.0 & 55.5$\pm$0.7 \\
+\bottomrule
+\end{tabular}}
+\end{table}

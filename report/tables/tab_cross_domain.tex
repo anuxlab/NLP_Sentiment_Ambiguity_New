@@ -1,0 +1,37 @@
+\begin{table}[t]
+\centering\small
+\caption{Cross-domain transfer: mean and standard deviation over three seeds for neural models; deterministic TF-IDF runs have zero observed seed variation. Macro-F1 complements accuracy under domain-specific class imbalance.}\label{tab:cross}
+\resizebox{\linewidth}{!}{\begin{tabular}{llccc}
+\toprule
+Model & Trained on & Tested on & Accuracy (mean $\pm$ SD, \%) & Macro-F1 (mean $\pm$ SD, \%) \\
+\midrule
+Tiny-BERT (+MLM pre-training) & SST-2 (movies) & SST-2 (movies) & $77.5\pm1.3$ & $77.3\pm1.5$ \\
+Tiny-BERT (+MLM pre-training) & SST-2 (movies) & Finance (news) & $51.8\pm4.7$ & $51.3\pm4.5$ \\
+Tiny-BERT (+MLM pre-training) & SST-2 (movies) & Airline (tweets) & $68.3\pm12.6$ & $60.2\pm7.8$ \\
+Tiny-BERT (+MLM pre-training) & Finance (news) & SST-2 (movies) & $54.1\pm0.5$ & $54.1\pm0.5$ \\
+Tiny-BERT (+MLM pre-training) & Finance (news) & Finance (news) & $86.5\pm1.4$ & $83.6\pm1.8$ \\
+Tiny-BERT (+MLM pre-training) & Finance (news) & Airline (tweets) & $47.2\pm1.0$ & $44.8\pm1.0$ \\
+Tiny-BERT (+MLM pre-training) & Airline (tweets) & SST-2 (movies) & $55.6\pm1.8$ & $49.5\pm4.0$ \\
+Tiny-BERT (+MLM pre-training) & Airline (tweets) & Finance (news) & $33.4\pm1.2$ & $28.9\pm2.2$ \\
+Tiny-BERT (+MLM pre-training) & Airline (tweets) & Airline (tweets) & $91.5\pm0.6$ & $86.3\pm0.8$ \\
+Tiny-BERT (random init) & SST-2 (movies) & SST-2 (movies) & $78.5\pm1.1$ & $78.5\pm1.1$ \\
+Tiny-BERT (random init) & SST-2 (movies) & Finance (news) & $52.3\pm2.9$ & $52.0\pm2.7$ \\
+Tiny-BERT (random init) & SST-2 (movies) & Airline (tweets) & $73.8\pm2.7$ & $63.9\pm1.8$ \\
+Tiny-BERT (random init) & Finance (news) & SST-2 (movies) & $53.0\pm0.9$ & $51.2\pm0.6$ \\
+Tiny-BERT (random init) & Finance (news) & Finance (news) & $87.2\pm1.2$ & $84.4\pm1.6$ \\
+Tiny-BERT (random init) & Finance (news) & Airline (tweets) & $35.6\pm6.4$ & $35.0\pm5.5$ \\
+Tiny-BERT (random init) & Airline (tweets) & SST-2 (movies) & $56.5\pm0.5$ & $51.6\pm0.5$ \\
+Tiny-BERT (random init) & Airline (tweets) & Finance (news) & $35.4\pm1.3$ & $32.4\pm1.4$ \\
+Tiny-BERT (random init) & Airline (tweets) & Airline (tweets) & $91.6\pm0.3$ & $86.6\pm0.4$ \\
+TF-IDF + LogReg & SST-2 (movies) & SST-2 (movies) & $81.3\pm0.0$ & $81.3\pm0.0$ \\
+TF-IDF + LogReg & SST-2 (movies) & Finance (news) & $62.7\pm0.0$ & $60.6\pm0.0$ \\
+TF-IDF + LogReg & SST-2 (movies) & Airline (tweets) & $75.3\pm0.0$ & $66.7\pm0.0$ \\
+TF-IDF + LogReg & Finance (news) & SST-2 (movies) & $52.2\pm0.0$ & $42.5\pm0.0$ \\
+TF-IDF + LogReg & Finance (news) & Finance (news) & $87.3\pm0.0$ & $84.1\pm0.0$ \\
+TF-IDF + LogReg & Finance (news) & Airline (tweets) & $26.8\pm0.0$ & $25.8\pm0.0$ \\
+TF-IDF + LogReg & Airline (tweets) & SST-2 (movies) & $53.0\pm0.0$ & $40.7\pm0.0$ \\
+TF-IDF + LogReg & Airline (tweets) & Finance (news) & $32.0\pm0.0$ & $25.8\pm0.0$ \\
+TF-IDF + LogReg & Airline (tweets) & Airline (tweets) & $92.0\pm0.0$ & $86.3\pm0.0$ \\
+\bottomrule
+\end{tabular}}
+\end{table}
