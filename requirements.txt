@@ -8,3 +8,4 @@ matplotlib
 scipy
 gensim>=4.3
 vaderSentiment>=3.3
+tabulate
