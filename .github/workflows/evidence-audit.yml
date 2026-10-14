@@ -3,6 +3,14 @@ name: Saved Evidence Audit
 # This workflow audits existing records. It deliberately does not train models
 # or download datasets, so it cannot silently replace measured results.
 on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'results/**'
+      - 'src/**'
+      - 'ci/**'
+      - 'tests/**'
+      - '.github/workflows/evidence-audit.yml'
   workflow_dispatch:
   schedule:
     - cron: '20 3 * * 1' # Mondays at 03:20 UTC

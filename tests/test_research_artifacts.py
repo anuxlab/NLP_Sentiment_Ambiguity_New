@@ -136,8 +136,14 @@ def test_evidence_audit_report_is_explicit_about_scope(tmp_path):
     assert "does not validate the original training run" in report["interpretation_limit"]
 
 
-def test_github_workflows_keep_training_manual_and_confirmed():
+def test_github_workflows_automate_matrix_experiments_and_keep_manual_fallback():
     workflow = (ROOT / ".github" / "workflows" / "experiment.yml").read_text()
-    assert "workflow_dispatch:" in workflow
-    assert "inputs.confirmation == 'RUN'" in workflow
-    assert "Research Experiment (manual, CPU)" in workflow
+    assert "push:" in workflow
+    assert "schedule:" in workflow
+    assert "workflow_dispatch:" in workflow  # optional recovery/debug entry point
+    assert "matrix:" in workflow
+    assert "domain: [sst2, finance, airline]" in workflow
+    assert "name: Pretrain MLM once" in workflow
+    assert "name: Merge, analyze, audit" in workflow
+    assert "python -m pytest -q tests" in workflow
+    assert "Research Experiment (parallel CPU domains)" in workflow
