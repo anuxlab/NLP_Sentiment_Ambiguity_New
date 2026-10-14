@@ -147,3 +147,35 @@ def test_github_workflows_automate_matrix_experiments_and_keep_manual_fallback()
     assert "name: Merge, analyze, audit" in workflow
     assert "python -m pytest -q tests" in workflow
     assert "Research Experiment (parallel CPU domains)" in workflow
+
+
+
+def test_merge_helper_filters_accumulated_global_artifacts_by_domain():
+    import importlib.util
+    helper_path = ROOT / "ci" / "merge_experiment_artifacts.py"
+    spec = importlib.util.spec_from_file_location("merge_experiment_artifacts", helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    rows = [
+        {"stage": "curve", "model": "tfidf_lr", "n": 100},
+        {"domain": "finance", "stage": "curve", "model": "tfidf_lr", "n": 100},
+        {"domain": "airline", "stage": "curve", "model": "tfidf_lr", "n": 100},
+    ]
+    assert [r for r in rows if module.row_domain(r) == "sst2"] == [rows[0]]
+    assert [r for r in rows if module.row_domain(r) == "finance"] == [rows[1]]
+    assert [r for r in rows if module.row_domain(r) == "airline"] == [rows[2]]
+
+
+def test_merge_helper_assigns_prediction_files_to_exact_domain():
+    import importlib.util
+    helper_path = ROOT / "ci" / "merge_experiment_artifacts.py"
+    spec = importlib.util.spec_from_file_location("merge_experiment_artifacts", helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.prediction_belongs_to_domain("curve_model_100_0.npy", "sst2")
+    assert module.prediction_belongs_to_domain("curve_model_finance_100_0.npy", "finance")
+    assert module.prediction_belongs_to_domain("curve_model_airline_100_0.npy", "airline")
+    assert not module.prediction_belongs_to_domain("curve_model_finance_100_0.npy", "sst2")
+    assert not module.prediction_belongs_to_domain("curve_model_airline_100_0.npy", "finance")
