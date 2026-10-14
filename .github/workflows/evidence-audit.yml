@@ -1,19 +1,11 @@
 name: Saved Evidence Audit
 
 # This workflow audits existing records. It deliberately does not train models
-# or download datasets, so it cannot silently replace measured results.
+# or download datasets. Weekly schedule is opt-in via ENABLE_WEEKLY_AUDIT=true.
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'results/**'
-      - 'src/**'
-      - 'ci/**'
-      - 'tests/**'
-      - '.github/workflows/evidence-audit.yml'
   workflow_dispatch:
   schedule:
-    - cron: '20 3 * * 1' # Mondays at 03:20 UTC
+    - cron: '20 3 * * 1' # Mondays at 03:20 UTC (job skipped unless enabled)
 
 permissions:
   contents: read
@@ -24,6 +16,8 @@ concurrency:
 
 jobs:
   audit:
+    # Scheduled audits are disabled by default; manual dispatch remains available.
+    if: ${{ github.event_name != 'schedule' || vars.ENABLE_WEEKLY_AUDIT == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

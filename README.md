@@ -104,6 +104,37 @@ bootstrap tests against TF-IDF). The script is **resumable**. Cost warning: Dist
 
 The paired-bootstrap script resamples test examples jointly for both systems and averages paired differences over the available matched seeds. Its intervals are conditional on those seeds; the output also reports seed-to-seed SD. Do not describe these intervals as capturing retraining uncertainty.
 
+## DynaSent human-distribution experiments (Phase 2)
+
+DynaSent is now connected to an end-to-end pilot runner. The primary task preserves the four recorded categories in this order: `negative`, `neutral`, `positive`, `mixed`. The loader preserves human vote distributions even when `gold_label` is null. For the matched three-objective comparison, all methods use the same sampled training examples with non-null majority labels; an optional separate soft-target-only condition can include null-majority rows. Normalized train sentences found in dev/test are excluded from the effective training view, and duplicate training sentences are deduplicated; dev/test are not changed.
+
+The uploaded DynaSent repository archive is included at `data/dynasent-main.zip` for reproducible pilot runs. Run the CPU-friendly TF-IDF baseline across both rounds:
+
+```bash
+./run_dynasent_pilot.sh
+# Or configure it:
+BUDGET=300 EVAL_SIZE=1000 EPOCHS=15 SEED=1 ./run_dynasent_pilot.sh
+```
+
+For the local tiny-BERT model (requires `transformers` and `tokenizers` from `requirements.txt`):
+
+```bash
+python src/run_dynasent_experiments.py \
+  --data data/dynasent-main.zip --round round1 --backend tiny-bert \
+  --checkpoint results/models/mlm_final --budget 100 --eval-size 500 --seeds 0 --epochs 3
+```
+
+The three matched objectives are majority-label cross-entropy, human-distribution soft-target cross-entropy, and generic label smoothing. Each run writes `metrics.json`, `metrics.csv`, `predictions.jsonl`, `config_and_audit.json`, and `summary.md` under `results/dynasent_pilot_<round>/`. Reported metrics include held-out Jensen–Shannon divergence (bits), soft Brier score, accuracy, macro-F1, and ECE. Use `--eval-size 0` for the full test split and multiple seeds for final analysis. Pilot outputs are exploratory, not final research claims.
+
+The DynaSent workflow is automated after this repository version is pushed to GitHub:
+
+- **On relevant pushes to `main`/`master`:** run the fast checks, then the default CPU-friendly TF-IDF pilot for both rounds.
+- **Every Sunday at 02:00 UTC:** repeat the same pilot to produce fresh, comparable outputs.
+- **Manual dispatch remains optional:** select round, backend, budget, evaluation size, and epochs from the Actions page.
+- **Outputs are uploaded as run-specific workflow artifacts** for 30 days. The workflow does not commit generated results back into the repository, so it cannot overwrite research files or create a commit loop.
+
+No manual click is needed for push-triggered CI or pilot runs once the workflow is present on GitHub and Actions are enabled. Weekly pilot and audit jobs are disabled by default and require opt-in repository variables. The first publication of this updated archive to your GitHub repository is still a one-time setup step. The default TF-IDF backend is quick and CPU-friendly; tiny-BERT uses the local MLM checkpoint and can take longer, so it remains an optional manually selected backend until its CI runtime is validated. See [`docs/PHASE2_IMPLEMENTATION.md`](docs/PHASE2_IMPLEMENTATION.md) and [`docs/DEPLOYMENT_AND_PILOT.md`](docs/DEPLOYMENT_AND_PILOT.md). Fast checks: `python -m py_compile src/*.py tests/*.py && pytest -q tests`.
+
 ## Build the report
 Upload the whole `report/` folder to Overleaf (New Project -> Upload Project), compile `main.tex`
 with pdfLaTeX + BibTeX (references are in `refs.bib`; Overleaf runs BibTeX automatically). Re-run `make_assets.py` to refresh figures/tables automatically after new experiments.
@@ -135,11 +166,12 @@ These tests validate the saved three-seed records, cross-domain direction arithm
 
 ## GitHub Actions CI/CD and evidence validation
 
-The repository has three workflows under `.github/workflows/`:
+The repository has four workflows under `.github/workflows/`:
 
-- **NLP Research CI** runs on pushes and pull requests. It compiles Python, checks `run_all.sh`, runs fast tests, and uploads a saved-evidence audit.
-- **Saved Evidence Audit** runs weekly or manually. It checks archived result records and generated assets without training models or downloading datasets.
-- **Research Experiment (manual, CPU)** is explicitly manual and requires typing `RUN`. It supports `core-only` or `all-domains`, clean or resume mode, and uploads outputs as a workflow artifact.
+- **NLP Research CI** runs on pushes and pull requests. It compiles Python, checks shell scripts, runs fast tests, and uploads a saved-evidence audit.
+- **Saved Evidence Audit** is manually runnable. Its weekly job is disabled by default and requires `ENABLE_WEEKLY_AUDIT=true`; it checks archived records without training models or downloading datasets.
+- **Research Experiment (manual, CPU)** remains an explicit, resource-intensive manual run for the legacy full pipeline.
+- **DynaSent Soft-Target Pilot** runs automatically after relevant pushes to `main`/`master` and every Sunday at 02:00 UTC. It tests and runs the CPU-friendly TF-IDF comparison on both rounds, then uploads metrics and predictions as a workflow artifact. A manual override is still available but not required for routine runs.
 
 Start with the fast checks locally or on GitHub:
 
