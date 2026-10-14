@@ -4,7 +4,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from run_dynasent_experiments import evaluate, sample_rows
+from run_dynasent_experiments import evaluate, sample_rows, sample_null_augmented_rows
 from dynasent_data import LABELS
 
 
@@ -40,3 +40,32 @@ def test_sample_rows_is_reproducible_and_full_when_zero():
     rows = [_row(i) for i in range(10)]
     assert [r["text_id"] for r in sample_rows(rows, 4, 3)] == [r["text_id"] for r in sample_rows(rows, 4, 3)]
     assert len(sample_rows(rows, 0, 3)) == 10
+
+
+def test_null_augmented_sampler_guarantees_null_rows_and_fixed_budget():
+    rows = [
+        _row(i, gold=None if i < 6 else i % 4,
+             probs=[0.2, 0.2, 0.2, 0.4] if i < 6 else [1, 0, 0, 0])
+        for i in range(12)
+    ]
+    sampled = sample_null_augmented_rows(rows, budget=8, seed=7, null_fraction=0.5)
+    assert len(sampled) == 8
+    assert sum(r["gold_label_id"] is None for r in sampled) == 4
+    assert sum(r["gold_label_id"] is not None for r in sampled) == 4
+    assert len({r["text_id"] for r in sampled}) == 8
+
+
+def test_null_augmented_sampler_is_reproducible():
+    rows = [_row(i, gold=None if i < 5 else i % 4,
+                 probs=[0.25, 0.25, 0.25, 0.25] if i < 5 else [1, 0, 0, 0])
+            for i in range(10)]
+    a = sample_null_augmented_rows(rows, budget=6, seed=13)
+    b = sample_null_augmented_rows(rows, budget=6, seed=13)
+    assert [r["text_id"] for r in a] == [r["text_id"] for r in b]
+
+
+def test_null_augmented_sampler_rejects_budget_one():
+    rows = [_row(1, gold=None, probs=[0.2, 0.2, 0.2, 0.4]), _row(2)]
+    import pytest
+    with pytest.raises(ValueError, match="budget >= 2"):
+        sample_null_augmented_rows(rows, budget=1, seed=0)

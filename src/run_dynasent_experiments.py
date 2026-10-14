@@ -8,8 +8,9 @@ Neural tiny-BERT run (requires the project's transformers/tokenizers dependencie
 
 The three matched conditions use the same labeled training subset: majority-label CE,
 human-distribution soft-target CE, and generic label smoothing. Examples with null
-majority labels are excluded from this matched comparison; an optional separate
-soft-target condition can include them using --include-null-soft-only.
+majority labels are excluded from the matched comparison. The optional
+--include-null-soft-only adds a separately reported soft-target condition with
+a fixed total budget and a guaranteed, recorded share of null-majority examples.
 """
 from __future__ import annotations
 import argparse, csv, json, math, random, sys, time
@@ -75,6 +76,47 @@ def sample_rows(rows: list[dict[str, Any]], n: int, seed: int) -> list[dict[str,
     if n <= 0 or n >= len(rows): return list(rows)
     idx = np.random.RandomState(seed).choice(len(rows), size=n, replace=False)
     return [rows[int(i)] for i in idx]
+
+
+def sample_null_augmented_rows(
+    rows: list[dict[str, Any]], budget: int, seed: int, null_fraction: float = 0.5
+) -> list[dict[str, Any]]:
+    """Sample a fixed-budget soft-target set that deliberately includes null-gold rows.
+
+    The returned set contains up to round(budget * null_fraction) null-majority
+    examples, capped by availability, plus non-null-gold rows to fill the budget.
+    At least one null-gold row is required; the caller must report this as a
+    different-data condition rather than a matched comparison.
+    """
+    if budget < 2:
+        raise ValueError("Null-augmented soft-target condition requires budget >= 2")
+    null_rows = [r for r in rows if r["gold_label_id"] is None and r["num_votes"] > 0]
+    hard_rows = [r for r in rows if r["gold_label_id"] is not None and r["num_votes"] > 0]
+    if not null_rows:
+        raise ValueError("No null-majority training rows with valid vote distributions are available")
+    if not hard_rows:
+        raise ValueError("No non-null-majority rows are available to fill the fixed budget")
+    if not 0.0 < null_fraction < 1.0:
+        raise ValueError("null_fraction must be strictly between 0 and 1")
+    requested_null = max(1, int(round(budget * null_fraction)))
+    n_null = min(requested_null, len(null_rows), budget - 1)
+    n_hard = budget - n_null
+    if len(hard_rows) < n_hard:
+        # Preserve the requested total budget when possible by adding more null rows.
+        n_hard = len(hard_rows)
+        n_null = min(budget - n_hard, len(null_rows))
+    if n_null + n_hard < budget:
+        raise ValueError(
+            f"Cannot meet budget {budget}: only {len(null_rows)} null-gold and "
+            f"{len(hard_rows)} non-null-gold rows are available"
+        )
+    rng = np.random.RandomState(seed)
+    selected_null = [null_rows[int(i)] for i in rng.choice(len(null_rows), size=n_null, replace=False)]
+    selected_hard = [hard_rows[int(i)] for i in rng.choice(len(hard_rows), size=n_hard, replace=False)]
+    selected = selected_null + selected_hard
+    # Shuffle so null examples are not clustered at the beginning of training.
+    order = rng.permutation(len(selected))
+    return [selected[int(i)] for i in order]
 
 
 def fit_tfidf(train_rows, eval_rows, condition, seed, args):
@@ -164,7 +206,7 @@ def main():
     p.add_argument("--batch-size", type=int, default=32); p.add_argument("--lr", type=float, default=0.01)
     p.add_argument("--weight-decay", type=float, default=0.001); p.add_argument("--label-smoothing", type=float, default=0.1)
     p.add_argument("--max-features", type=int, default=12000); p.add_argument("--max-length", type=int, default=64)
-    p.add_argument("--device", choices=["auto","cpu","cuda"], default="auto"); p.add_argument("--include-null-soft-only", action="store_true")
+    p.add_argument("--device", choices=["auto","cpu","cuda"], default="auto"); p.add_argument("--include-null-soft-only", action="store_true", help="add a distinct fixed-budget soft-target condition that deliberately includes null-majority examples"); p.add_argument("--null-soft-fraction", type=float, default=0.5, help="target fraction of null-majority examples in the additional soft-target condition")
     p.add_argument("--out-dir", default=str(ROOT/"results"/"dynasent_pilot")); args=p.parse_args()
     if args.budget < 1 or args.epochs < 1: p.error("--budget and --epochs must be positive")
     data=Path(args.data)
@@ -180,27 +222,44 @@ def main():
         matched=[train_eligible[int(i)] for i in ix]
         conditions=[("majority_ce",matched),("human_soft_targets",matched),("label_smoothing",matched)]
         if args.include_null_soft_only:
-            soft_all=[r for r in splits.train if r["num_votes"]>0]
-            extra_n=min(args.budget,len(soft_all)); ix2=np.random.RandomState(seed+10000).choice(len(soft_all),size=extra_n,replace=False)
-            conditions.append(("human_soft_targets_all_votes_including_null_gold",[soft_all[int(i)] for i in ix2]))
+            null_augmented = sample_null_augmented_rows(
+                splits.train, args.budget, seed + 10000, args.null_soft_fraction
+            )
+            conditions.append(("human_soft_targets_null_augmented", null_augmented))
         for condition, rows in conditions:
             print(f"[run] round={args.round} backend={args.backend} seed={seed} condition={condition} n_train={len(rows)} n_eval={len(eval_rows)}",flush=True)
             fn=fit_tfidf if args.backend=="tfidf" else fit_tiny_bert
             probs, elapsed, extra=fn(rows,eval_rows,condition,seed,args)
             metrics=evaluate(probs,eval_rows)
-            rec={"round":args.round,"backend":args.backend,"seed":seed,"condition":condition,"budget":len(rows),"epochs":args.epochs,"train_time_s":elapsed,**metrics,**extra}
+            n_null_train = sum(r["gold_label_id"] is None for r in rows)
+            rec={"round":args.round,"backend":args.backend,"seed":seed,"condition":condition,"budget":len(rows),"n_null_gold_train":n_null_train,"n_non_null_gold_train":len(rows)-n_null_train,"epochs":args.epochs,"train_time_s":elapsed,**metrics,**extra}
             run_rows.append(rec); print(json.dumps(rec,sort_keys=True),flush=True)
             for row, prob in zip(eval_rows,probs):
                 prediction_rows.append({"round":args.round,"backend":args.backend,"seed":seed,"condition":condition,"text_id":row.get("text_id"),"text":row["text"],"gold_label":row["gold_label"],"human_distribution":row["target_probs"],"predicted_distribution":prob.tolist(),"predicted_label":LABELS[int(prob.argmax())],"js_divergence_bits":float(jensen_shannon_divergence(torch.tensor(prob[None,:]),torch.tensor(np.asarray(row["target_probs"])[None,:])).item())})
+    audit["null_soft_fraction_requested"] = args.null_soft_fraction if args.include_null_soft_only else None
+    audit["null_augmented_condition_note"] = (
+        "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines."
+        if args.include_null_soft_only else None
+    )
     (out/"config_and_audit.json").write_text(json.dumps({"args":vars(args),"audit":audit},indent=2),encoding="utf-8")
     (out/"metrics.json").write_text(json.dumps(run_rows,indent=2),encoding="utf-8")
+    with (out/"training_manifest.jsonl").open("w",encoding="utf-8") as f:
+        for seed in args.seeds:
+            rng=np.random.RandomState(seed); ix=rng.choice(len(train_eligible),size=args.budget,replace=False)
+            matched=[train_eligible[int(i)] for i in ix]
+            manifests=[("matched", "majority_ce_or_matched_soft", matched)]
+            if args.include_null_soft_only:
+                manifests.append(("null_augmented", "human_soft_targets_null_augmented", sample_null_augmented_rows(splits.train,args.budget,seed+10000,args.null_soft_fraction)))
+            for design, condition_group, rows in manifests:
+                for row in rows:
+                    f.write(json.dumps({"round":args.round,"seed":seed,"design":design,"condition_group":condition_group,"text_id":row.get("text_id"),"gold_label":row.get("gold_label"),"is_null_gold":row.get("gold_label_id") is None},ensure_ascii=False)+"\n")
     if run_rows:
         with (out/"metrics.csv").open("w",newline="",encoding="utf-8") as f:
             w=csv.DictWriter(f,fieldnames=list(dict.fromkeys(k for r in run_rows for k in r))); w.writeheader(); w.writerows(run_rows)
     with (out/"predictions.jsonl").open("w",encoding="utf-8") as f:
         for r in prediction_rows: f.write(json.dumps(r,ensure_ascii=False)+"\n")
-    summary=["# DynaSent pilot results","",f"- Round: `{args.round}`",f"- Backend: `{args.backend}`",f"- Budget: `{args.budget}`",f"- Evaluation rows: `{len(eval_rows)}`",f"- Seeds: `{args.seeds}`","","> Pilot results are exploratory, not final research claims. The test subset is fixed by seed 20261014; use the full test split and multiple seeds for final evaluation.","","## Metrics","","| Condition | Seed | Train seconds | JS divergence ↓ | Soft Brier ↓ | Accuracy | Macro-F1 | ECE ↓ |","|---|---:|---:|---:|---:|---:|---:|---:|"]
-    for r in run_rows: summary.append(f"| {r['condition']} | {r['seed']} | {r['train_time_s']:.2f} | {r['js_divergence_mean_bits']:.4f} | {r['soft_brier_score']:.4f} | {r['accuracy'] if r['accuracy'] is not None else 'NA'} | {r['macro_f1'] if r['macro_f1'] is not None else 'NA'} | {r['ece_10bin'] if r['ece_10bin'] is not None else 'NA'} |")
+    summary=["# DynaSent pilot results","",f"- Round: `{args.round}`",f"- Backend: `{args.backend}`",f"- Budget: `{args.budget}`",f"- Evaluation rows: `{len(eval_rows)}`",f"- Seeds: `{args.seeds}`","","> Pilot results are exploratory, not final research claims. The test subset is fixed by seed 20261014; use the full test split and multiple seeds for final evaluation.","","## Metrics","","| Condition | Seed | Train rows | Null-gold train rows | Train seconds | JS divergence ↓ | Soft Brier ↓ | Accuracy | Macro-F1 | ECE ↓ |","|---|---:|---:|---:|---:|---:|---:|---:|"]
+    for r in run_rows: summary.append(f"| {r['condition']} | {r['seed']} | {r['budget']} | {r['n_null_gold_train']} | {r['train_time_s']:.2f} | {r['js_divergence_mean_bits']:.4f} | {r['soft_brier_score']:.4f} | {r['accuracy'] if r['accuracy'] is not None else 'NA'} | {r['macro_f1'] if r['macro_f1'] is not None else 'NA'} | {r['ece_10bin'] if r['ece_10bin'] is not None else 'NA'} |")
     (out/"summary.md").write_text("\n".join(summary)+"\n",encoding="utf-8")
     print(f"\n[done] wrote {len(run_rows)} metric rows and {len(prediction_rows)} prediction rows to {out}",flush=True)
 

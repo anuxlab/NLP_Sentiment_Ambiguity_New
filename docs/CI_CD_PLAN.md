@@ -13,8 +13,7 @@ Levels 1 and 2 must never be presented as proof of level 3.
 ## Workflows
 
 - `NLP Research CI` (`ci.yml`): runs on pushes, pull requests and manual dispatch. Installs dependencies, compiles Python, validates shell syntax, runs tests and uploads an audit report.
-- `Saved Evidence Audit` (`evidence-audit.yml`): manually runnable; weekly job is opt-in via repository variable `ENABLE_WEEKLY_AUDIT=true`. It checks saved records only and performs no training or data downloads.
-- `DynaSent Soft-Target Pilot` (`dynasent-pilot.yml`): runs on relevant code pushes and manual dispatch. Weekly training is disabled by default; enable only with repository variable `ENABLE_WEEKLY_PILOT=true`.
+- `Saved Evidence Audit` (`evidence-audit.yml`): runs weekly or manually. It checks saved records only and performs no training or data downloads.
 - `Research Experiment (manual, CPU)` (`experiment.yml`): explicit manual dispatch only. The operator must type `RUN`, choose core-only or all domains, and choose clean or resume mode. Results are uploaded as a run artifact; the workflow does not commit results back to the branch.
 
 ## Recommended branch protection
@@ -24,7 +23,7 @@ Require `NLP Research CI / Static checks and artifact tests` to pass before merg
 ## How to use
 
 1. Create a GitHub repository and push this directory to `main`.
-2. Open **Actions** and enable workflows if GitHub prompts you. Weekly schedules stay disabled unless you explicitly add the opt-in repository variables.
+2. Open **Actions** and enable workflows if GitHub prompts you.
 3. Confirm the CI workflow passes on the initial push.
 4. Open the `Saved Evidence Audit` run artifact and inspect `evidence_audit.json`.
 5. Only after CI and artifact checks pass, run `Research Experiment (manual, CPU)` with `confirmation=RUN`. Start with `core-only` before `all-domains`.

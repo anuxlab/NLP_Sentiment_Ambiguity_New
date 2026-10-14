@@ -1,9 +1,9 @@
 name: DynaSent Soft-Target Pilot
 
 on:
-  # Weekly runs are opt-in: set repository variable ENABLE_WEEKLY_PILOT=true.
+  # Fully automatic runs: a weekly CPU-friendly pilot plus runs after relevant code changes.
   schedule:
-    - cron: '0 2 * * 0'  # Sundays at 02:00 UTC (job is skipped unless enabled)
+    - cron: '0 2 * * 0'  # Sundays at 02:00 UTC
   push:
     branches: [main, master]
     paths:
@@ -42,6 +42,16 @@ on:
         required: true
         default: '10'
         type: string
+      include_null_soft_only:
+        description: 'Add a distinct soft-target condition with null-majority training examples'
+        required: true
+        type: boolean
+        default: false
+      null_soft_fraction:
+        description: 'Target share of null-majority examples in the additional condition'
+        required: true
+        default: '0.5'
+        type: string
 
 permissions:
   contents: read
@@ -52,7 +62,7 @@ concurrency:
 
 jobs:
   pilot:
-    # Scheduled runs are disabled by default. Push and manual runs remain available.
+    # Weekly execution is opt-in; push/PR and manual runs remain available.
     if: ${{ github.event_name != 'schedule' || vars.ENABLE_WEEKLY_PILOT == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -82,6 +92,8 @@ jobs:
           INPUT_BUDGET: ${{ inputs.budget }}
           INPUT_EVAL_SIZE: ${{ inputs.eval_size }}
           INPUT_EPOCHS: ${{ inputs.epochs }}
+          INPUT_INCLUDE_NULL: ${{ inputs.include_null_soft_only }}
+          INPUT_NULL_FRACTION: ${{ inputs.null_soft_fraction }}
         run: |
           # Scheduled and push-triggered runs use conservative CPU defaults.
           echo "rounds=${INPUT_ROUND:-both}" >> "$GITHUB_OUTPUT"
@@ -89,6 +101,8 @@ jobs:
           echo "budget=${INPUT_BUDGET:-100}" >> "$GITHUB_OUTPUT"
           echo "eval_size=${INPUT_EVAL_SIZE:-500}" >> "$GITHUB_OUTPUT"
           echo "epochs=${INPUT_EPOCHS:-10}" >> "$GITHUB_OUTPUT"
+          echo "include_null=${INPUT_INCLUDE_NULL:-false}" >> "$GITHUB_OUTPUT"
+          echo "null_fraction=${INPUT_NULL_FRACTION:-0.5}" >> "$GITHUB_OUTPUT"
           echo "event=${EVENT_NAME}" >> "$GITHUB_OUTPUT"
       - name: Run pilot
         env:
@@ -96,6 +110,10 @@ jobs:
         run: |
           rounds="${{ steps.settings.outputs.rounds }}"
           if [[ "$rounds" == "both" ]]; then rounds="round1 round2"; fi
+          extra_args=()
+          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then
+            extra_args+=(--include-null-soft-only --null-soft-fraction "${{ steps.settings.outputs.null_fraction }}")
+          fi
           for round_name in $rounds; do
             python src/run_dynasent_experiments.py \
               --data data/dynasent-main.zip \
@@ -105,7 +123,8 @@ jobs:
               --eval-size "${{ steps.settings.outputs.eval_size }}" \
               --epochs "${{ steps.settings.outputs.epochs }}" \
               --seeds 0 \
-              --out-dir "results/dynasent_pilot_${round_name}"
+              --out-dir "results/dynasent_pilot_${round_name}" \
+              "${extra_args[@]}"
           done
       - name: Upload pilot outputs
         if: always()
