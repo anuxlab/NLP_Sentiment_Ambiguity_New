@@ -100,9 +100,16 @@ jobs:
               "${extra_args[@]}"
           done
       - name: Aggregate multi-seed results and audit completeness
-        run: aggregate_args=()
-          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then aggregate_args+=(--expect-null-augmented); fi
-          python src/aggregate_dynasent_multiseed.py --results-root results/dynasent_multiseed --rounds round1 round2 "${aggregate_args[@]}"
+        shell: bash
+        run: |
+          aggregate_args=()
+          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then
+            aggregate_args+=(--expect-null-augmented)
+          fi
+          python src/aggregate_dynasent_multiseed.py \
+            --results-root results/dynasent_multiseed \
+            --rounds round1 round2 \
+            "${aggregate_args[@]}"
       - name: Upload full-test multi-seed results
         if: always()
         uses: actions/upload-artifact@v4
