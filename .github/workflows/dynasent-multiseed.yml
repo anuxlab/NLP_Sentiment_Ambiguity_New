@@ -1,0 +1,113 @@
+name: DynaSent Multi-Seed Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: 'Space-separated reproducibility seeds'
+        required: true
+        default: '0 1 2 3 4'
+        type: string
+      budget:
+        description: 'Training examples per condition and seed'
+        required: true
+        default: '100'
+        type: string
+      epochs:
+        description: 'Training epochs'
+        required: true
+        default: '10'
+        type: string
+      include_null_soft_only:
+        description: 'Include the separately reported null-majority soft-target condition'
+        required: true
+        default: true
+        type: boolean
+      null_soft_fraction:
+        description: 'Fraction of null-majority examples in the additional condition'
+        required: true
+        default: '0.5'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dynasent-multiseed-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Validate code and tests
+        run: |
+          python -m py_compile src/*.py tests/*.py
+          bash -n run_all.sh run_dynasent_pilot.sh
+          pytest -q tests
+      - name: Validate seed input
+        id: settings
+        env:
+          SEEDS_INPUT: ${{ inputs.seeds }}
+          BUDGET_INPUT: ${{ inputs.budget }}
+          EPOCHS_INPUT: ${{ inputs.epochs }}
+          INCLUDE_NULL_INPUT: ${{ inputs.include_null_soft_only }}
+          NULL_FRACTION_INPUT: ${{ inputs.null_soft_fraction }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          seeds=os.environ['SEEDS_INPUT'].split()
+          if not seeds or any(not s.isdigit() for s in seeds): raise SystemExit('seeds must be space-separated non-negative integers')
+          if len(set(seeds)) != len(seeds): raise SystemExit('seeds must be unique')
+          if int(os.environ['BUDGET_INPUT']) < 2: raise SystemExit('budget must be >= 2')
+          if int(os.environ['EPOCHS_INPUT']) < 1: raise SystemExit('epochs must be positive')
+          f=float(os.environ['NULL_FRACTION_INPUT'])
+          if not 0 < f < 1: raise SystemExit('null fraction must be between 0 and 1')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('seeds='+' '.join(seeds)+'\n')
+              out.write('include_null='+os.environ['INCLUDE_NULL_INPUT'].lower()+'\n')
+          PY
+      - name: Run full-test evaluation for both rounds
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: |
+          extra_args=()
+          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then
+            extra_args+=(--include-null-soft-only --null-soft-fraction "${{ inputs.null_soft_fraction }}")
+          fi
+          for round_name in round1 round2; do
+            python src/run_dynasent_experiments.py \
+              --data data/dynasent-main.zip \
+              --round "$round_name" \
+              --backend tfidf \
+              --budget "${{ inputs.budget }}" \
+              --eval-size 0 \
+              --epochs "${{ inputs.epochs }}" \
+              --seeds ${{ steps.settings.outputs.seeds }} \
+              --out-dir "results/dynasent_multiseed/$round_name" \
+              "${extra_args[@]}"
+          done
+      - name: Aggregate multi-seed results and audit completeness
+        run: aggregate_args=()
+          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then aggregate_args+=(--expect-null-augmented); fi
+          python src/aggregate_dynasent_multiseed.py --results-root results/dynasent_multiseed --rounds round1 round2 "${aggregate_args[@]}"
+      - name: Upload full-test multi-seed results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynasent-multiseed-${{ github.run_id }}
+          path: results/dynasent_multiseed/
+          if-no-files-found: error
+          retention-days: 90
