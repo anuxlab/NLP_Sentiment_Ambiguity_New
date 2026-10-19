@@ -42,11 +42,6 @@ on:
         required: true
         default: '10'
         type: string
-      tiny_bert_lr:
-        description: 'Learning rate for tiny-BERT fine-tuning (used only when backend is tiny-bert)'
-        required: true
-        default: '0.00002'
-        type: string
       include_null_soft_only:
         description: 'Add a distinct soft-target condition with null-majority training examples'
         required: true
@@ -97,7 +92,6 @@ jobs:
           INPUT_BUDGET: ${{ inputs.budget }}
           INPUT_EVAL_SIZE: ${{ inputs.eval_size }}
           INPUT_EPOCHS: ${{ inputs.epochs }}
-          INPUT_TINY_BERT_LR: ${{ inputs.tiny_bert_lr }}
           INPUT_INCLUDE_NULL: ${{ inputs.include_null_soft_only }}
           INPUT_NULL_FRACTION: ${{ inputs.null_soft_fraction }}
         run: |
@@ -107,7 +101,6 @@ jobs:
           echo "budget=${INPUT_BUDGET:-100}" >> "$GITHUB_OUTPUT"
           echo "eval_size=${INPUT_EVAL_SIZE:-500}" >> "$GITHUB_OUTPUT"
           echo "epochs=${INPUT_EPOCHS:-10}" >> "$GITHUB_OUTPUT"
-          echo "tiny_bert_lr=${INPUT_TINY_BERT_LR:-0.00002}" >> "$GITHUB_OUTPUT"
           echo "include_null=${INPUT_INCLUDE_NULL:-false}" >> "$GITHUB_OUTPUT"
           echo "null_fraction=${INPUT_NULL_FRACTION:-0.5}" >> "$GITHUB_OUTPUT"
           echo "event=${EVENT_NAME}" >> "$GITHUB_OUTPUT"
@@ -118,9 +111,6 @@ jobs:
           rounds="${{ steps.settings.outputs.rounds }}"
           if [[ "$rounds" == "both" ]]; then rounds="round1 round2"; fi
           extra_args=()
-          if [[ "${{ steps.settings.outputs.backend }}" == "tiny-bert" ]]; then
-            extra_args+=(--tiny-bert-lr "${{ steps.settings.outputs.tiny_bert_lr }}")
-          fi
           if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then
             extra_args+=(--include-null-soft-only --null-soft-fraction "${{ steps.settings.outputs.null_fraction }}")
           fi

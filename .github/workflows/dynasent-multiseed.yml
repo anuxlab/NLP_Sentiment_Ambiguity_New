@@ -3,16 +3,23 @@ name: DynaSent Multi-Seed Evaluation
 on:
   workflow_dispatch:
     inputs:
-      backend:
-        description: 'Model backend for the multi-seed evaluation'
-        required: true
-        type: choice
-        options: [tfidf, tiny-bert]
-        default: tiny-bert
       seeds:
         description: 'Space-separated reproducibility seeds'
         required: true
         default: '0 1 2 3 4'
+        type: string
+      backend:
+        description: 'Model backend to evaluate'
+        required: true
+        default: 'tiny-bert'
+        type: choice
+        options:
+          - tiny-bert
+          - tfidf
+      tiny_bert_lr:
+        description: 'Tiny-BERT learning rate (ignored for TF-IDF)'
+        required: true
+        default: '0.00002'
         type: string
       budget:
         description: 'Training examples per condition and seed'
@@ -23,11 +30,6 @@ on:
         description: 'Training epochs'
         required: true
         default: '10'
-        type: string
-      tiny_bert_lr:
-        description: 'Learning rate for tiny-BERT (ignored for TF-IDF)'
-        required: true
-        default: '0.00002'
         type: string
       include_null_soft_only:
         description: 'Include the separately reported null-majority soft-target condition'
@@ -50,7 +52,7 @@ concurrency:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -67,91 +69,77 @@ jobs:
           python -m py_compile src/*.py tests/*.py
           bash -n run_all.sh run_dynasent_pilot.sh
           pytest -q tests
-      - name: Validate and resolve run settings
+      - name: Validate seed input
         id: settings
         env:
-          BACKEND_INPUT: ${{ inputs.backend }}
           SEEDS_INPUT: ${{ inputs.seeds }}
           BUDGET_INPUT: ${{ inputs.budget }}
           EPOCHS_INPUT: ${{ inputs.epochs }}
+          BACKEND_INPUT: ${{ inputs.backend }}
           TINY_BERT_LR_INPUT: ${{ inputs.tiny_bert_lr }}
           INCLUDE_NULL_INPUT: ${{ inputs.include_null_soft_only }}
           NULL_FRACTION_INPUT: ${{ inputs.null_soft_fraction }}
         shell: bash
         run: |
           python - <<'PY'
-          import os, math
-          backend = os.environ['BACKEND_INPUT'].strip()
-          if backend not in {'tfidf', 'tiny-bert'}:
-              raise SystemExit('backend must be tfidf or tiny-bert')
-          seeds = os.environ['SEEDS_INPUT'].split()
-          if not seeds or any(not s.isdigit() for s in seeds):
-              raise SystemExit('seeds must be space-separated non-negative integers')
-          if len(set(seeds)) != len(seeds):
-              raise SystemExit('seeds must be unique')
-          budget = int(os.environ['BUDGET_INPUT'])
-          epochs = int(os.environ['EPOCHS_INPUT'])
-          if budget < 2:
-              raise SystemExit('budget must be >= 2')
-          if epochs < 1:
-              raise SystemExit('epochs must be positive')
-          lr = float(os.environ['TINY_BERT_LR_INPUT'])
-          if not math.isfinite(lr) or lr <= 0:
-              raise SystemExit('tiny_bert_lr must be a finite positive number')
-          fraction = float(os.environ['NULL_FRACTION_INPUT'])
-          if not 0 < fraction < 1:
-              raise SystemExit('null fraction must be between 0 and 1')
-          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
-              out.write(f'backend={backend}\n')
-              out.write('seeds=' + ' '.join(seeds) + '\n')
-              out.write('include_null=' + os.environ['INCLUDE_NULL_INPUT'].lower() + '\n')
-          print(f'backend={backend}; seeds={seeds}; budget={budget}; epochs={epochs}; tiny_bert_lr={lr}; null_fraction={fraction}')
+          import os
+          seeds=os.environ['SEEDS_INPUT'].split()
+          if not seeds or any(not s.isdigit() for s in seeds): raise SystemExit('seeds must be space-separated non-negative integers')
+          if len(set(seeds)) != len(seeds): raise SystemExit('seeds must be unique')
+          if os.environ['BACKEND_INPUT'] not in {'tiny-bert','tfidf'}: raise SystemExit('unsupported backend')
+          lr=float(os.environ['TINY_BERT_LR_INPUT'])
+          if lr <= 0: raise SystemExit('tiny_bert_lr must be positive')
+          if int(os.environ['BUDGET_INPUT']) < 2: raise SystemExit('budget must be >= 2')
+          if int(os.environ['EPOCHS_INPUT']) < 1: raise SystemExit('epochs must be positive')
+          f=float(os.environ['NULL_FRACTION_INPUT'])
+          if not 0 < f < 1: raise SystemExit('null fraction must be between 0 and 1')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:
+              out.write('seeds='+' '.join(seeds)+'\n')
+              out.write('include_null='+os.environ['INCLUDE_NULL_INPUT'].lower()+'\n')
+              out.write('backend='+os.environ['BACKEND_INPUT']+'\n')
+              out.write('tiny_bert_lr='+os.environ['TINY_BERT_LR_INPUT']+'\n')
           PY
       - name: Run full-test evaluation for both rounds
         env:
           PYTHONUNBUFFERED: '1'
-          BACKEND: ${{ steps.settings.outputs.backend }}
-          SEEDS: ${{ steps.settings.outputs.seeds }}
+          BACKEND: ${{ inputs.backend }}
+          TINY_BERT_LR: ${{ inputs.tiny_bert_lr }}
           BUDGET: ${{ inputs.budget }}
           EPOCHS: ${{ inputs.epochs }}
-          TINY_BERT_LR: ${{ inputs.tiny_bert_lr }}
+          SEEDS: ${{ steps.settings.outputs.seeds }}
           INCLUDE_NULL: ${{ steps.settings.outputs.include_null }}
           NULL_FRACTION: ${{ inputs.null_soft_fraction }}
         shell: bash
         run: |
-          # Research design is fixed to both DynaSent rounds and the complete test split.
-          rounds_array=(round1 round2)
-          eval_size=0
-          read -r -a seeds_array <<< "$SEEDS"
+          set -Eeuo pipefail
+          rm -rf results/dynasent_multiseed
+          mkdir -p results/dynasent_multiseed
           extra_args=()
-          if [[ "$BACKEND" == "tiny-bert" ]]; then
-            extra_args+=(--tiny-bert-lr "$TINY_BERT_LR")
-          fi
           if [[ "$INCLUDE_NULL" == "true" ]]; then
             extra_args+=(--include-null-soft-only --null-soft-fraction "$NULL_FRACTION")
           fi
-          test -f data/dynasent-main.zip || { echo "Missing data/dynasent-main.zip"; exit 1; }
-          test -f src/aggregate_dynasent_multiseed.py || { echo "Missing src/aggregate_dynasent_multiseed.py"; exit 1; }
-          for round_name in "${rounds_array[@]}"; do
-            echo "Starting evaluation: round=$round_name eval_size=$eval_size (0 = full test split) backend=$BACKEND seeds=$SEEDS budget=$BUDGET epochs=$EPOCHS"
-            python src/run_dynasent_experiments.py \
-              --data data/dynasent-main.zip \
-              --round "$round_name" \
-              --backend "$BACKEND" \
-              --budget "$BUDGET" \
-              --eval-size "$eval_size" \
-              --epochs "$EPOCHS" \
-              --seeds "${seeds_array[@]}" \
-              --out-dir "results/dynasent_multiseed/$round_name" \
-              "${extra_args[@]}"
+          for round_name in round1 round2; do
+            log_path="results/dynasent_multiseed/${round_name}_run.log"
+            cmd=(python src/run_dynasent_experiments.py
+              --data data/dynasent-main.zip
+              --round "$round_name"
+              --backend "$BACKEND"
+              --budget "$BUDGET"
+              --eval-size 0
+              --epochs "$EPOCHS"
+              --seeds $SEEDS
+              --out-dir "results/dynasent_multiseed/$round_name")
+            if [[ "$BACKEND" == "tiny-bert" ]]; then cmd+=(--tiny-bert-lr "$TINY_BERT_LR"); fi
+            printf 'COMMAND:'; printf ' %q' "${cmd[@]}"; printf '\n'
+            "${cmd[@]}" "${extra_args[@]}" 2>&1 | tee "$log_path"
+            grep -F "[run] round=${round_name} backend=${BACKEND} " "$log_path" >/dev/null
+            BACKEND_EXPECTED="$BACKEND" ROUND_EXPECTED="$round_name" python -c 'import json,os; from pathlib import Path; p=Path("results/dynasent_multiseed")/os.environ["ROUND_EXPECTED"]; c=json.loads((p/"config_and_audit.json").read_text()); r=json.loads((p/"metrics.json").read_text()); assert c["args"]["backend"]==os.environ["BACKEND_EXPECTED"] and c["args"]["round"]==os.environ["ROUND_EXPECTED"]; assert r and {x["backend"] for x in r}=={os.environ["BACKEND_EXPECTED"]} and {x["round"] for x in r}=={os.environ["ROUND_EXPECTED"]}'
           done
       - name: Aggregate multi-seed results and audit completeness
         shell: bash
-        env:
-          INCLUDE_NULL: ${{ steps.settings.outputs.include_null }}
         run: |
           aggregate_args=()
-          if [[ "$INCLUDE_NULL" == "true" ]]; then
+          if [[ "${{ steps.settings.outputs.include_null }}" == "true" ]]; then
             aggregate_args+=(--expect-null-augmented)
           fi
           python src/aggregate_dynasent_multiseed.py \

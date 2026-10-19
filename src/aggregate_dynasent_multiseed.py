@@ -16,22 +16,46 @@ def main():
     p.add_argument("--rounds", nargs="+", default=["round1","round2"])
     p.add_argument("--expect-null-augmented", action="store_true", help="require the separately reported null-augmented condition")
     args=p.parse_args(); root=Path(args.results_root)
+    root.mkdir(parents=True, exist_ok=True)
+
+    def fail(message: str, *, round_name: str | None = None):
+        # Preserve an audit artifact even when validation fails early. This makes
+        # failed runs diagnosable and prevents downstream FileNotFoundError noise.
+        audit = {
+            "status": "failed",
+            "all_complete": False,
+            "error": message,
+            "failed_round": round_name,
+            "rounds_requested": list(args.rounds),
+        }
+        (root / "run_completeness.json").write_text(
+            json.dumps(audit, indent=2), encoding="utf-8"
+        )
+        raise SystemExit(message)
+
     all_metrics=[]; all_preds=[]; provenance=[]
     for rnd in args.rounds:
         d=root/rnd
         metrics_path=d/"metrics.json"; preds_path=d/"predictions.jsonl"
-        if not metrics_path.exists() or not preds_path.exists(): raise FileNotFoundError(f"Expected {metrics_path} and {preds_path}")
+        if not metrics_path.exists() or not preds_path.exists():
+            fail(f"Expected both {metrics_path} and {preds_path}", round_name=rnd)
         config_path=d/"config_and_audit.json"
-        if not config_path.exists(): raise FileNotFoundError(f"Expected provenance file: {config_path}")
+        if not config_path.exists():
+            fail(f"Expected provenance file: {config_path}", round_name=rnd)
         config=read_json(config_path)
         configured_round=config.get("args",{}).get("round")
         configured_backend=config.get("args",{}).get("backend")
-        if configured_round != rnd: raise ValueError(f"Round mismatch in {config_path}: {configured_round} != {rnd}")
-        if configured_backend not in {"tiny-bert", "tfidf"}: raise ValueError(f"Missing/invalid backend in {config_path}: {configured_backend}")
+        if configured_round != rnd:
+            fail(f"Round mismatch in {config_path}: {configured_round} != {rnd}", round_name=rnd)
+        if configured_backend not in {"tiny-bert", "tfidf"}:
+            fail(f"Missing/invalid backend in {config_path}: {configured_backend}", round_name=rnd)
         records=read_json(metrics_path)
-        if not records: raise ValueError(f"No metric records in {metrics_path}")
-        if {r.get("backend") for r in records} != {configured_backend}: raise ValueError(f"Backend mismatch between config and metrics for {rnd}")
-        if {r.get("round") for r in records} != {rnd}: raise ValueError(f"Round mismatch between config and metrics for {rnd}")
+        if not records:
+            fail(f"No metric records in {metrics_path}", round_name=rnd)
+        if {r.get("backend") for r in records} != {configured_backend}:
+            fail(f"Backend mismatch between config and metrics for {rnd}", round_name=rnd)
+        if {r.get("round") for r in records} != {rnd}:
+            fail(f"Round mismatch between config and metrics for {rnd}", round_name=rnd)
         for r in records: all_metrics.append(r)
         provenance.append({"round":rnd,"backend":configured_backend,"seeds":config.get("args",{}).get("seeds"),"budget":config.get("args",{}).get("budget"),"epochs":config.get("args",{}).get("epochs"),"eval_size":config.get("args",{}).get("eval_size"),"tiny_bert_lr":config.get("args",{}).get("tiny_bert_lr")})
         with preds_path.open(encoding="utf-8") as f:
