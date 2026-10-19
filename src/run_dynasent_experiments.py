@@ -31,6 +31,14 @@ from dynasent_data import LABELS, load_dynasent_round
 from soft_targets import hard_label_cross_entropy, jensen_shannon_divergence, soft_target_cross_entropy
 
 
+def declared_condition_names(include_null_soft_only: bool) -> list[str]:
+    """Return the conditions expected in outputs and audit metadata."""
+    names = ["majority_ce", "human_soft_targets", "label_smoothing"]
+    if include_null_soft_only:
+        names.append("human_soft_targets_null_augmented")
+    return names
+
+
 def seed_everything(seed: int) -> None:
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
@@ -216,7 +224,7 @@ def main():
     if len(train_eligible)<args.budget: p.error(f"Requested budget {args.budget}, only {len(train_eligible)} train rows have majority labels")
     eval_rows=sample_rows(splits.test,args.eval_size,seed=20261014)
     out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
-    run_rows=[]; prediction_rows=[]; audit={"round":args.round,"data":str(data),"backend":args.backend,"labels":list(LABELS),"loader_audit":splits.audit,"eligible_train_rows_with_gold":len(train_eligible),"test_rows_used":len(eval_rows),"eval_sample_seed":20261014,"budget":args.budget,"seeds":args.seeds,"conditions":["majority_ce","human_soft_targets","label_smoothing"],"matching_policy":"all three matched conditions use identical examples sampled from non-null gold-label training pool"}
+    run_rows=[]; prediction_rows=[]; audit={"round":args.round,"data":str(data),"backend":args.backend,"labels":list(LABELS),"loader_audit":splits.audit,"eligible_train_rows_with_gold":len(train_eligible),"test_rows_used":len(eval_rows),"eval_sample_seed":20261014,"budget":args.budget,"seeds":args.seeds,"conditions":declared_condition_names(args.include_null_soft_only),"matching_policy":"the first three conditions use identical examples sampled from the non-null gold-label training pool; the null-augmented condition, when enabled, uses a different training composition"}
     for seed in args.seeds:
         rng=np.random.RandomState(seed); ix=rng.choice(len(train_eligible),size=args.budget,replace=False)
         matched=[train_eligible[int(i)] for i in ix]

@@ -4,7 +4,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from run_dynasent_experiments import evaluate, sample_rows, sample_null_augmented_rows
+from run_dynasent_experiments import evaluate, sample_rows, sample_null_augmented_rows, declared_condition_names
 from dynasent_data import LABELS
 
 
@@ -69,3 +69,11 @@ def test_null_augmented_sampler_rejects_budget_one():
     import pytest
     with pytest.raises(ValueError, match="budget >= 2"):
         sample_null_augmented_rows(rows, budget=1, seed=0)
+
+
+def test_declared_conditions_match_optional_null_augmented_run():
+    matched = declared_condition_names(False)
+    assert matched == ["majority_ce", "human_soft_targets", "label_smoothing"]
+    augmented = declared_condition_names(True)
+    assert augmented == matched + ["human_soft_targets_null_augmented"]
+    assert len(augmented) == len(set(augmented))

@@ -1,4 +1,4 @@
-# DynaSent multi-seed full-test evaluation — local execution report
+# DynaSent multi-seed full-test evaluation — GitHub Actions run
 
 ## Execution and completeness
 
@@ -54,4 +54,4 @@ The test split's observed vote distributions have only two types in this data lo
 
 ## Limitations and next step
 
-This is a local CPU TF-IDF experiment, not yet a GitHub Actions reproduction. Five seeds are a useful reproducibility check but are not sufficient by themselves for strong inferential claims. No hyperparameters were tuned on the test set. Before a paper-level claim, verify exact code/data commit on GitHub, preserve per-example paired predictions, calculate paired bootstrap confidence intervals over test examples (alongside seed variability), and consider whether the null-majority subset is representative. Keep Round 1 and Round 2 results separate.
+This experiment was reproduced in GitHub Actions on run 38672586726 (commit `948b62adb1ace37424b9c82b4dc6fdf5ce42b2f7`). The remote run passed 29 tests, completed all 10 round/seed groups, produced 40 metric records and 86,400 prediction rows, and uploaded the artifact. A follow-up fix is required because the audit `conditions` list currently omits the null-augmented condition even though metrics and manifests include it. Five seeds are a useful reproducibility check but are not sufficient by themselves for strong inferential claims. No hyperparameters were tuned on the test set. Before a paper-level claim, use the frozen analysis protocol, preserve per-example paired predictions, report paired bootstrap intervals over test examples alongside seed variability, account for multiplicity, and consider whether the null-majority subset is representative. Keep Round 1 and Round 2 results separate.
