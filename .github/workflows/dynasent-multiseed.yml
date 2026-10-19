@@ -112,15 +112,14 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          RUN_ROOT="results/dynasent_runs/${BACKEND}"
-          rm -rf "$RUN_ROOT"
-          mkdir -p "$RUN_ROOT"
+          rm -rf results/dynasent_multiseed
+          mkdir -p results/dynasent_multiseed
           extra_args=()
           if [[ "$INCLUDE_NULL" == "true" ]]; then
             extra_args+=(--include-null-soft-only --null-soft-fraction "$NULL_FRACTION")
           fi
           for round_name in round1 round2; do
-            log_path="${RUN_ROOT}/${round_name}_run.log"
+            log_path="results/dynasent_multiseed/${round_name}_run.log"
             cmd=(python src/run_dynasent_experiments.py
               --data data/dynasent-main.zip
               --round "$round_name"
@@ -129,12 +128,12 @@ jobs:
               --eval-size 0
               --epochs "$EPOCHS"
               --seeds $SEEDS
-              --out-dir "${RUN_ROOT}/$round_name")
+              --out-dir "results/dynasent_multiseed/$round_name")
             if [[ "$BACKEND" == "tiny-bert" ]]; then cmd+=(--tiny-bert-lr "$TINY_BERT_LR"); fi
             printf 'COMMAND:'; printf ' %q' "${cmd[@]}"; printf '\n'
             "${cmd[@]}" "${extra_args[@]}" 2>&1 | tee "$log_path"
             grep -F "[run] round=${round_name} backend=${BACKEND} " "$log_path" >/dev/null
-            BACKEND_EXPECTED="$BACKEND" ROUND_EXPECTED="$round_name" python -c 'import json,os; from pathlib import Path; p=Path("results/dynasent_runs")/os.environ["BACKEND_EXPECTED"]/os.environ["ROUND_EXPECTED"]; c=json.loads((p/"config_and_audit.json").read_text()); r=json.loads((p/"metrics.json").read_text()); assert c["args"]["backend"]==os.environ["BACKEND_EXPECTED"] and c["args"]["round"]==os.environ["ROUND_EXPECTED"]; assert r and {x["backend"] for x in r}=={os.environ["BACKEND_EXPECTED"]} and {x["round"] for x in r}=={os.environ["ROUND_EXPECTED"]}'
+            BACKEND_EXPECTED="$BACKEND" ROUND_EXPECTED="$round_name" python -c 'import json,os; from pathlib import Path; p=Path("results/dynasent_multiseed")/os.environ["ROUND_EXPECTED"]; c=json.loads((p/"config_and_audit.json").read_text()); r=json.loads((p/"metrics.json").read_text()); assert c["args"]["backend"]==os.environ["BACKEND_EXPECTED"] and c["args"]["round"]==os.environ["ROUND_EXPECTED"]; assert r and {x["backend"] for x in r}=={os.environ["BACKEND_EXPECTED"]} and {x["round"] for x in r}=={os.environ["ROUND_EXPECTED"]}'
           done
       - name: Aggregate multi-seed results and audit completeness
         shell: bash
@@ -144,26 +143,34 @@ jobs:
             aggregate_args+=(--expect-null-augmented)
           fi
           python src/aggregate_dynasent_multiseed.py \
-            --results-root "results/dynasent_runs/${{ inputs.backend }}" \
+            --results-root results/dynasent_multiseed \
             --rounds round1 round2 \
             "${aggregate_args[@]}"
-      - name: Verify artifact completeness and backend provenance
-        shell: bash
+      - name: Run statistical validation and generate final results analysis
         env:
-          BACKEND: ${{ inputs.backend }}
+          BACKEND: ${{ steps.settings.outputs.backend }}
           SEEDS: ${{ steps.settings.outputs.seeds }}
+        shell: bash
         run: |
           set -Eeuo pipefail
-          python src/verify_dynasent_artifact.py \
-            --results-root "results/dynasent_runs/${BACKEND}" \
-            --backend "${BACKEND}" \
-            --seeds ${SEEDS} \
-            --rounds round1 round2
-      - name: Upload full-test multi-seed results
+          analysis_dir="results/dynasent_analysis/${BACKEND}"
+          rm -rf "$analysis_dir"
+          python src/analyze_dynasent_results.py \
+            --input-dir results/dynasent_multiseed \
+            --output-dir "$analysis_dir" \
+            --expected-seeds $SEEDS \
+            --bootstrap-replicates 10000 \
+            --permutation-replicates 10000
+          test -s "$analysis_dir/analysis_manifest.json"
+          test -s "$analysis_dir/primary_js_comparisons.csv"
+          test -s "$analysis_dir/FINAL_RESULTS_REPORT.md"
+      - name: Upload full-test results and statistical analysis
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dynasent-multiseed-${{ inputs.backend }}-${{ github.run_id }}
-          path: results/dynasent_runs/${{ inputs.backend }}/
+          path: |
+            results/dynasent_multiseed/
+            results/dynasent_analysis/${{ inputs.backend }}/
           if-no-files-found: error
           retention-days: 90
