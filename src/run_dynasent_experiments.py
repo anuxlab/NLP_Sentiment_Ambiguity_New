@@ -178,7 +178,12 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
             h=self.encoder(input_ids=ids, attention_mask=mask).last_hidden_state
             m=mask.unsqueeze(-1).to(h.dtype); pooled=(h*m).sum(1)/m.sum(1).clamp(min=1)
             return self.head(self.drop(pooled))
-    model=Head(enc); opt=torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    model = Head(enc)
+    opt = torch.optim.AdamW(
+        model.parameters(),
+        lr=args.tiny_bert_lr,
+        weight_decay=args.weight_decay,
+    )
     if args.device == "cuda" and not torch.cuda.is_available(): raise RuntimeError("--device cuda requested but CUDA is unavailable")
     device=torch.device("cuda" if torch.cuda.is_available() and args.device != "cpu" else "cpu"); model.to(device)
     def batch(texts):
@@ -265,6 +270,7 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
         "checkpoint": str(checkpoint),
         "device": str(device),
         "max_length": args.max_length,
+        "learning_rate": args.tiny_bert_lr,
         "optimizer_steps": optimizer_steps,
         "first_batch_loss": batch_losses[0] if batch_losses else None,
         "last_batch_loss": batch_losses[-1] if batch_losses else None,
@@ -280,7 +286,8 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
         + json.dumps({"condition": condition, "seed": seed, **diagnostics}, sort_keys=True),
         flush=True,
     )
-    return np.concatenate(chunks, axis=0), training_time_s + evaluation_time_s, diagnostics
+    # Return training time separately; evaluation time is reported in diagnostics.
+    return np.concatenate(chunks, axis=0), training_time_s, diagnostics
 
 
 def main():
@@ -289,12 +296,25 @@ def main():
     p.add_argument("--backend", choices=["tfidf","tiny-bert"], default="tfidf"); p.add_argument("--checkpoint", default=str(ROOT/"results"/"models"/"mlm_final"))
     p.add_argument("--budget", type=int, default=100); p.add_argument("--eval-size", type=int, default=500, help="0 means full test split")
     p.add_argument("--seeds", type=int, nargs="+", default=[0]); p.add_argument("--epochs", type=int, default=15)
-    p.add_argument("--batch-size", type=int, default=32); p.add_argument("--lr", type=float, default=0.01)
+    p.add_argument("--batch-size", type=int, default=32)
+    p.add_argument(
+        "--lr", type=float, default=0.01,
+        help="Learning rate for the TF-IDF linear baseline.",
+    )
+    p.add_argument(
+        "--tiny-bert-lr", type=float, default=2e-5,
+        help="Learning rate for tiny-BERT fine-tuning.",
+    )
     p.add_argument("--weight-decay", type=float, default=0.001); p.add_argument("--label-smoothing", type=float, default=0.1)
     p.add_argument("--max-features", type=int, default=12000); p.add_argument("--max-length", type=int, default=64)
     p.add_argument("--device", choices=["auto","cpu","cuda"], default="auto"); p.add_argument("--include-null-soft-only", action="store_true", help="add a distinct fixed-budget soft-target condition that deliberately includes null-majority examples"); p.add_argument("--null-soft-fraction", type=float, default=0.5, help="target fraction of null-majority examples in the additional soft-target condition")
     p.add_argument("--out-dir", default=str(ROOT/"results"/"dynasent_pilot")); args=p.parse_args()
-    if args.budget < 1 or args.epochs < 1: p.error("--budget and --epochs must be positive")
+    if args.budget < 1 or args.epochs < 1:
+        p.error("--budget and --epochs must be positive")
+    if args.batch_size < 1:
+        p.error("--batch-size must be positive")
+    if args.lr <= 0 or args.tiny_bert_lr <= 0:
+        p.error("--lr and --tiny-bert-lr must be positive")
     data=Path(args.data)
     if not data.exists(): p.error(f"DynaSent archive/path not found: {data}")
     splits=load_dynasent_round(data,args.round)
