@@ -16,18 +16,31 @@ def main():
     p.add_argument("--rounds", nargs="+", default=["round1","round2"])
     p.add_argument("--expect-null-augmented", action="store_true", help="require the separately reported null-augmented condition")
     args=p.parse_args(); root=Path(args.results_root)
-    all_metrics=[]; all_preds=[]
+    all_metrics=[]; all_preds=[]; provenance=[]
     for rnd in args.rounds:
         d=root/rnd
         metrics_path=d/"metrics.json"; preds_path=d/"predictions.jsonl"
         if not metrics_path.exists() or not preds_path.exists(): raise FileNotFoundError(f"Expected {metrics_path} and {preds_path}")
+        config_path=d/"config_and_audit.json"
+        if not config_path.exists(): raise FileNotFoundError(f"Expected provenance file: {config_path}")
+        config=read_json(config_path)
+        configured_round=config.get("args",{}).get("round")
+        configured_backend=config.get("args",{}).get("backend")
+        if configured_round != rnd: raise ValueError(f"Round mismatch in {config_path}: {configured_round} != {rnd}")
+        if configured_backend not in {"tiny-bert", "tfidf"}: raise ValueError(f"Missing/invalid backend in {config_path}: {configured_backend}")
         records=read_json(metrics_path)
+        if not records: raise ValueError(f"No metric records in {metrics_path}")
+        if {r.get("backend") for r in records} != {configured_backend}: raise ValueError(f"Backend mismatch between config and metrics for {rnd}")
+        if {r.get("round") for r in records} != {rnd}: raise ValueError(f"Round mismatch between config and metrics for {rnd}")
         for r in records: all_metrics.append(r)
+        provenance.append({"round":rnd,"backend":configured_backend,"seeds":config.get("args",{}).get("seeds"),"budget":config.get("args",{}).get("budget"),"epochs":config.get("args",{}).get("epochs"),"eval_size":config.get("args",{}).get("eval_size"),"tiny_bert_lr":config.get("args",{}).get("tiny_bert_lr")})
         with preds_path.open(encoding="utf-8") as f:
             for line in f:
                 if line.strip(): all_preds.append(json.loads(line))
     if not all_metrics: raise ValueError("No metric records found")
     df=pd.DataFrame(all_metrics)
+    if df.backend.nunique() != 1: raise ValueError(f"Mixed backends in one artifact: {sorted(df.backend.unique())}")
+    if set(df["round"].unique()) != set(args.rounds): raise ValueError("Metrics do not cover exactly the requested rounds")
     summary=[]
     for (rnd,cond), g in df.groupby(["round","condition"], sort=True):
         row={"round":rnd,"condition":cond,"n_seeds":int(g.seed.nunique()),"n_runs":len(g)}
@@ -68,6 +81,10 @@ def main():
         tiers.append({"round":r["round"],"seed":r["seed"],"condition":r["condition"],"disagreement_tier":tier,"human_vote_entropy_bits":entropy,"max_human_vote_share":max_share,"js_divergence_bits":js,"correct":(float(r.get("predicted_label")==r.get("gold_label")) if r.get("gold_label") is not None else np.nan),"has_majority_gold":r.get("gold_label") is not None})
     tdf=pd.DataFrame(tiers)
     tdf.groupby(["round","condition","disagreement_tier"],dropna=False).agg(n_examples=("js_divergence_bits","size"),mean_js_divergence_bits=("js_divergence_bits","mean"),mean_max_human_vote_share=("max_human_vote_share","mean"),mean_human_vote_entropy_bits=("human_vote_entropy_bits","mean"),accuracy_on_gold_rows=("correct","mean"),n_with_majority_gold=("has_majority_gold","sum")).reset_index().to_csv(root/"disagreement_tier_summary.csv",index=False)
+    metric_keys=set((str(r["round"]),int(r["seed"]),str(r["condition"])) for r in all_metrics)
+    pred_keys=set((str(r["round"]),int(r["seed"]),str(r["condition"])) for r in all_preds)
+    if not pred_keys.issubset(metric_keys): raise ValueError("Prediction keys absent from metrics")
+    if not all_preds: raise ValueError("No predictions were loaded")
     # Protocol and run-completeness manifest.
     expected_rounds=set(args.rounds); expected_seeds=set()
     for r in all_metrics: expected_seeds.add(int(r["seed"]))
@@ -78,10 +95,10 @@ def main():
         for seed in sorted(expected_seeds):
             got=set(df[(df["round"]==rnd)&(df["seed"]==seed)]["condition"])
             completeness.append({"round":rnd,"seed":seed,"expected_conditions":sorted(expected_conditions),"observed_conditions":sorted(got),"complete":expected_conditions.issubset(got)})
-    (root/"run_completeness.json").write_text(json.dumps({"n_metric_rows":len(df),"n_prediction_rows":len(all_preds),"rounds":sorted(expected_rounds),"seeds":sorted(expected_seeds),"checks":completeness,"all_complete":all(x["complete"] for x in completeness)},indent=2),encoding="utf-8")
+    (root/"run_completeness.json").write_text(json.dumps({"n_metric_rows":len(df),"n_prediction_rows":len(all_preds),"backend":str(df.backend.iloc[0]),"provenance":provenance,"rounds":sorted(expected_rounds),"seeds":sorted(expected_seeds),"checks":completeness,"all_complete":all(x["complete"] for x in completeness)},indent=2),encoding="utf-8")
     (root/"MULTISEED_SUMMARY.md").write_text(
         "# DynaSent multi-seed summary\n\n"+
-        f"- Metric records: {len(df)}\n- Prediction rows: {len(all_preds)}\n- Rounds: {', '.join(sorted(expected_rounds))}\n- Seeds: {', '.join(map(str,sorted(expected_seeds)))}\n- Complete round/seed/condition groups: {sum(x['complete'] for x in completeness)}/{len(completeness)}\n\n"+
+        f"- Backend: {str(df.backend.iloc[0])}\n- Provenance validated for all rounds: yes\n- Metric records: {len(df)}\n- Prediction rows: {len(all_preds)}\n- Rounds: {', '.join(sorted(expected_rounds))}\n- Seeds: {', '.join(map(str,sorted(expected_seeds)))}\n- Complete round/seed/condition groups: {sum(x['complete'] for x in completeness)}/{len(completeness)}\n\n"+
         "Values are means and sample standard deviations across seeds. Paired improvements compare each condition with majority CE using matching seeds; they are descriptive and not a substitute for uncertainty analysis over examples. Disagreement tiers use human vote entropy, not model confidence: unanimous vote distributions (entropy 0) versus non-unanimous distributions (entropy > 0). Test-set results are not used to tune hyperparameters.\n",encoding="utf-8")
     if not all(x["complete"] for x in completeness): raise SystemExit("Incomplete run matrix; inspect run_completeness.json")
     print(f"Aggregated {len(df)} metric records and {len(all_preds)} predictions; all {len(completeness)} round/seed groups complete.")
