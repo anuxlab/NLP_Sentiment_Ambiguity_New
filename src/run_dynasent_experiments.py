@@ -200,8 +200,13 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
     nonfinite_loss_batches = 0
     training_started = time.time()
 
+    epoch_loss_history: list[dict[str, float | int]] = []
     for epoch in range(args.epochs):
         model.train()
+        epoch_started = time.time()
+        epoch_loss_sum = 0.0
+        epoch_examples = 0
+        epoch_batches = 0
         order = rng.permutation(len(train_rows))
         for start in range(0, len(train_rows), args.batch_size):
             idx = order[start:start + args.batch_size]
@@ -223,6 +228,12 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
 
             loss_value = float(loss.detach().cpu())
             batch_losses.append(loss_value)
+            batch_examples = len(idx)
+            # The loss returned by the criterion is a batch mean. Weight it by
+            # batch size so the epoch mean remains correct for a short final batch.
+            epoch_loss_sum += loss_value * batch_examples
+            epoch_examples += batch_examples
+            epoch_batches += 1
             if not math.isfinite(loss_value):
                 nonfinite_loss_batches += 1
                 raise RuntimeError(
@@ -238,6 +249,34 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
                 )
             opt.step()
             optimizer_steps += 1
+
+        epoch_mean_loss = epoch_loss_sum / epoch_examples if epoch_examples else float("nan")
+        if not math.isfinite(epoch_mean_loss):
+            raise RuntimeError(
+                f"Non-finite epoch mean loss for condition={condition}, seed={seed}, epoch={epoch + 1}: {epoch_mean_loss}"
+            )
+        epoch_record = {
+            "epoch": epoch + 1,
+            "mean_loss": float(epoch_mean_loss),
+            "batches": epoch_batches,
+            "examples": epoch_examples,
+            "optimizer_steps_cumulative": optimizer_steps,
+            "epoch_time_s": time.time() - epoch_started,
+        }
+        epoch_loss_history.append(epoch_record)
+        print(
+            "[tiny-bert-epoch] "
+            + json.dumps(
+                {
+                    "condition": condition,
+                    "seed": seed,
+                    "learning_rate": args.tiny_bert_lr,
+                    **epoch_record,
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
 
     training_time_s = time.time() - training_started
     final_params = [p.detach().cpu() for p in model.parameters() if p.requires_grad]
@@ -275,6 +314,7 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
         "first_batch_loss": batch_losses[0] if batch_losses else None,
         "last_batch_loss": batch_losses[-1] if batch_losses else None,
         "mean_batch_loss": float(np.mean(batch_losses)) if batch_losses else None,
+        "epoch_loss_history": epoch_loss_history,
         "nonfinite_loss_batches": nonfinite_loss_batches,
         "max_parameter_change": max_parameter_change,
         "training_time_s": training_time_s,
