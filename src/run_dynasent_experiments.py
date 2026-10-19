@@ -186,23 +186,101 @@ def fit_tiny_bert(train_rows, eval_rows, condition, seed, args):
     target=torch.tensor([r["target_probs"] for r in train_rows], dtype=torch.float32)
     gold=torch.tensor([r["gold_label_id"] if r["gold_label_id"] is not None else -1 for r in train_rows], dtype=torch.long)
     if condition in ("majority_ce", "label_smoothing") and (gold < 0).any(): raise ValueError("Hard-label baselines require non-null gold labels")
-    rng=np.random.RandomState(seed); started=time.time()
-    for _epoch in range(args.epochs):
-        model.train(); order=rng.permutation(len(train_rows))
-        for start in range(0,len(train_rows),args.batch_size):
-            idx=order[start:start+args.batch_size]
-            b=batch([train_rows[int(i)]["text"] for i in idx]); b={k:v.to(device) for k,v in b.items()}
-            logits=model(b["input_ids"],b["attention_mask"]); ti=torch.tensor(idx, dtype=torch.long)
-            if condition.startswith("human_soft_targets"): loss=soft_target_cross_entropy(logits,target[ti].to(device))
-            elif condition=="majority_ce": loss=hard_label_cross_entropy(logits,gold[ti].to(device))
-            else: loss=hard_label_cross_entropy(logits,gold[ti].to(device),label_smoothing=args.label_smoothing)
-            opt.zero_grad(set_to_none=True); loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(),1.0); opt.step()
-    model.eval(); chunks=[]
+    rng = np.random.RandomState(seed)
+    # Snapshot trainable parameters so the run can prove that optimizer steps
+    # changed the model, rather than merely completing the loop.
+    initial_params = [p.detach().cpu().clone() for p in model.parameters() if p.requires_grad]
+    optimizer_steps = 0
+    batch_losses: list[float] = []
+    nonfinite_loss_batches = 0
+    training_started = time.time()
+
+    for epoch in range(args.epochs):
+        model.train()
+        order = rng.permutation(len(train_rows))
+        for start in range(0, len(train_rows), args.batch_size):
+            idx = order[start:start + args.batch_size]
+            batch_inputs = batch([train_rows[int(i)]["text"] for i in idx])
+            batch_inputs = {k: v.to(device) for k, v in batch_inputs.items()}
+            logits = model(batch_inputs["input_ids"], batch_inputs["attention_mask"])
+            target_idx = torch.tensor(idx, dtype=torch.long)
+
+            if condition.startswith("human_soft_targets"):
+                loss = soft_target_cross_entropy(logits, target[target_idx].to(device))
+            elif condition == "majority_ce":
+                loss = hard_label_cross_entropy(logits, gold[target_idx].to(device))
+            elif condition == "label_smoothing":
+                loss = hard_label_cross_entropy(
+                    logits, gold[target_idx].to(device), label_smoothing=args.label_smoothing
+                )
+            else:
+                raise ValueError(f"Unknown training condition: {condition}")
+
+            loss_value = float(loss.detach().cpu())
+            batch_losses.append(loss_value)
+            if not math.isfinite(loss_value):
+                nonfinite_loss_batches += 1
+                raise RuntimeError(
+                    f"Non-finite loss for condition={condition}, seed={seed}, epoch={epoch}: {loss_value}"
+                )
+
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            if not torch.isfinite(torch.as_tensor(grad_norm)):
+                raise RuntimeError(
+                    f"Non-finite gradient norm for condition={condition}, seed={seed}, epoch={epoch}"
+                )
+            opt.step()
+            optimizer_steps += 1
+
+    training_time_s = time.time() - training_started
+    final_params = [p.detach().cpu() for p in model.parameters() if p.requires_grad]
+    if len(initial_params) != len(final_params):
+        raise RuntimeError("Trainable parameter set changed unexpectedly during training")
+    max_parameter_change = max(
+        (float((after - before).abs().max().item())
+         for before, after in zip(initial_params, final_params)),
+        default=0.0,
+    )
+    if optimizer_steps == 0:
+        raise RuntimeError("Tiny-BERT training completed with zero optimizer steps")
+    if max_parameter_change <= 0.0:
+        raise RuntimeError(
+            "Tiny-BERT training performed optimizer steps but no trainable parameter changed"
+        )
+
+    model.eval()
+    chunks = []
+    evaluation_started = time.time()
     with torch.no_grad():
-        for start in range(0,len(eval_rows),args.batch_size):
-            b=batch([r["text"] for r in eval_rows[start:start+args.batch_size]]); b={k:v.to(device) for k,v in b.items()}
-            chunks.append(torch.softmax(model(b["input_ids"],b["attention_mask"]),dim=-1).cpu().numpy())
-    return np.concatenate(chunks,axis=0), time.time()-started, {"checkpoint":str(checkpoint),"device":str(device),"max_length":args.max_length}
+        for start in range(0, len(eval_rows), args.batch_size):
+            batch_inputs = batch([r["text"] for r in eval_rows[start:start + args.batch_size]])
+            batch_inputs = {k: v.to(device) for k, v in batch_inputs.items()}
+            logits = model(batch_inputs["input_ids"], batch_inputs["attention_mask"])
+            chunks.append(torch.softmax(logits, dim=-1).cpu().numpy())
+    evaluation_time_s = time.time() - evaluation_started
+
+    diagnostics = {
+        "checkpoint": str(checkpoint),
+        "device": str(device),
+        "max_length": args.max_length,
+        "optimizer_steps": optimizer_steps,
+        "first_batch_loss": batch_losses[0] if batch_losses else None,
+        "last_batch_loss": batch_losses[-1] if batch_losses else None,
+        "mean_batch_loss": float(np.mean(batch_losses)) if batch_losses else None,
+        "nonfinite_loss_batches": nonfinite_loss_batches,
+        "max_parameter_change": max_parameter_change,
+        "training_time_s": training_time_s,
+        "evaluation_time_s": evaluation_time_s,
+        "trainable_parameter_tensors": len(initial_params),
+    }
+    print(
+        "[tiny-bert-training-diagnostics] "
+        + json.dumps({"condition": condition, "seed": seed, **diagnostics}, sort_keys=True),
+        flush=True,
+    )
+    return np.concatenate(chunks, axis=0), training_time_s + evaluation_time_s, diagnostics
 
 
 def main():
