@@ -55,6 +55,10 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+      - name: Remove stale experiment and analysis outputs
+        run: |
+          rm -rf results/dynasent_multiseed
+          rm -rf results/dynasent_analysis/tiny-bert results/dynasent_analysis/tfidf
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -186,7 +190,7 @@ jobs:
           test -s "$analysis_dir/primary_js_comparisons.csv"
           test -s "$analysis_dir/FINAL_RESULTS_REPORT.md"
       - name: Upload full-test results and statistical analysis
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: dynasent-multiseed-${{ inputs.backend }}-${{ github.run_id }}

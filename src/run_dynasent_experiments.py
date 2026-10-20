@@ -39,6 +39,44 @@ def declared_condition_names(include_null_soft_only: bool) -> list[str]:
     return names
 
 
+
+
+def build_config_payload(args: Any, audit: dict[str, Any]) -> dict[str, Any]:
+    """Build a backend-specific, auditable config payload.
+
+    `lr` is a TF-IDF-only setting; `tiny_bert_lr` is Tiny-BERT-only.
+    The inactive backend's learning-rate argument is omitted from serialized
+    args, and the effective optimizer learning rate is recorded explicitly.
+    """
+    serialized_args = vars(args).copy() if hasattr(args, "__dict__") else dict(args)
+    backend = serialized_args.get("backend")
+    audit_payload = dict(audit)
+    if backend == "tiny-bert":
+        lr = serialized_args.get("tiny_bert_lr")
+        if not isinstance(lr, (int, float)) or not math.isfinite(float(lr)) or float(lr) <= 0:
+            raise ValueError("Tiny-BERT requires a positive finite tiny_bert_lr")
+        serialized_args.pop("lr", None)
+        effective_learning_rate = {
+            "parameter": "tiny_bert_lr",
+            "value": float(lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    elif backend == "tfidf":
+        lr = serialized_args.get("lr")
+        if not isinstance(lr, (int, float)) or not math.isfinite(float(lr)) or float(lr) <= 0:
+            raise ValueError("TF-IDF requires a positive finite lr")
+        serialized_args.pop("tiny_bert_lr", None)
+        effective_learning_rate = {
+            "parameter": "lr",
+            "value": float(lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    else:
+        raise ValueError(f"Unsupported backend for config payload: {backend!r}")
+    audit_payload["effective_learning_rate"] = effective_learning_rate
+    return {"args": serialized_args, "audit": audit_payload}
+
+
 def seed_everything(seed: int) -> None:
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
@@ -389,26 +427,10 @@ def main():
         "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines."
         if args.include_null_soft_only else None
     )
-    # Store only backend-relevant LR settings. Keep the effective optimizer LR
-    # explicit and auditable; never serialize a misleading generic LR for BERT.
-    serialized_args = vars(args).copy()
-    if args.backend == "tiny-bert":
-        serialized_args.pop("lr", None)
-        effective_learning_rate = {
-            "parameter": "tiny_bert_lr",
-            "value": float(args.tiny_bert_lr),
-            "optimizer": "torch.optim.AdamW",
-        }
-    else:
-        serialized_args.pop("tiny_bert_lr", None)
-        effective_learning_rate = {
-            "parameter": "lr",
-            "value": float(args.lr),
-            "optimizer": "torch.optim.AdamW",
-        }
-    audit["effective_learning_rate"] = effective_learning_rate
+    # Build a backend-specific audit payload through the tested helper.
+    config_payload = build_config_payload(args, audit)
     (out/"config_and_audit.json").write_text(
-        json.dumps({"args": serialized_args, "audit": audit}, indent=2),
+        json.dumps(config_payload, indent=2),
         encoding="utf-8",
     )
     (out/"metrics.json").write_text(json.dumps(run_rows,indent=2),encoding="utf-8")
