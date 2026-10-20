@@ -2,7 +2,9 @@
 
 ## What is implemented
 
-- Added `src/run_annotated_softlabel_experiment.py`, a dataset-agnostic TF-IDF runner for three matched conditions (`majority_ce`, `human_soft_targets`, `label_smoothing`) and a separately reported `human_soft_targets_tie_inclusive` condition.
+The legacy `run_annotated_softlabel_experiment.py` implementation has been retired because its majority-CE path used scikit-learn LogisticRegression while the other conditions used a PyTorch linear model. Use the controlled runner below to reproduce the SentiMP-En controlled comparison. For the ongoing multi-domain extension, use `src/run_annotated_domain_experiments.py`; DynaSent remains on `src/run_dynasent_experiments.py`.
+
+- Added `src/run_annotated_softlabel_experiment_controlled.py`, a controlled TF-IDF runner for three matched conditions (`majority_ce`, `human_soft_targets`, `label_smoothing`) and a separately reported `human_soft_targets_tie_inclusive` condition.
 - It derives the target distribution from per-class vote counts, excludes tied examples from hard-label metrics, retains tied test examples for JS divergence and Brier score, checks normalized text overlap across train/dev/test, records tie counts, and writes metrics, per-example predictions, and an audit JSON.
 - The existing DynaSent runner already supports `--include-null-soft-only`; that condition is intentionally reported separately from the matched three-condition comparison because its training composition differs.
 
@@ -19,9 +21,9 @@ Class order defaults to `negative neutral positive`; supply `--labels negative n
 ## Run
 
 ```bash
-python src/run_annotated_softlabel_experiment.py \
+python src/run_annotated_softlabel_experiment_controlled.py \
   --input data/sentimp_en_votes.jsonl \
-  --out-dir results/sentimp_en_tie_inclusive \
+  --out-dir results/sentimp_en_controlled \
   --budgets 25 50 100 200 300 --seeds 0 1 2 3 4
 ```
 

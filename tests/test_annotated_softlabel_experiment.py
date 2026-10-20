@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from run_annotated_softlabel_experiment import parse_rows
+from run_annotated_softlabel_experiment_controlled import parse_rows
 
 
 def test_tied_vote_rows_are_not_given_arbitrary_hard_labels(tmp_path):

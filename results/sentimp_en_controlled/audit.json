@@ -1,0 +1,314 @@
+{
+  "input": "data/sentimp_en_votes.jsonl",
+  "labels": [
+    "negative",
+    "neutral",
+    "positive"
+  ],
+  "split_sizes": {
+    "train": 337,
+    "dev": 48,
+    "test": 95
+  },
+  "tied_rows_by_split": {
+    "train": 6,
+    "dev": 1,
+    "test": 2
+  },
+  "normalized_split_overlap": "none",
+  "conditions": [
+    "majority_ce",
+    "human_soft_targets",
+    "label_smoothing",
+    "human_soft_targets_tie_inclusive"
+  ],
+  "controlled_design": {
+    "shared_model": "PyTorch Linear + softmax",
+    "shared_optimizer": "AdamW",
+    "shared_learning_rate": 0.04,
+    "shared_weight_decay": 0.01,
+    "shared_epochs": 100,
+    "training": "full-batch; same number of updates",
+    "features": "one TF-IDF vectorizer fitted on matched non-tied subset per budget/seed",
+    "matched_conditions": "same examples, feature vocabulary, model initialization, optimizer and schedule; target construction differs",
+    "tie_inclusive": "same matched examples plus up to floor(budget/3) tied examples; reported separately because training composition differs",
+    "limitation": "full-batch AdamW and fixed epochs are shared; this experiment does not tune hyperparameters per condition"
+  },
+  "run_audits": [
+    {
+      "seed": 0,
+      "budget": 25,
+      "matched_train_fingerprint": "9425dec83949466f6ef19fb72d26f25ce89be69e1a7200d0ab1ef6acee2ecf18",
+      "n_matched": 25,
+      "n_tie_inclusive": 31,
+      "n_tied_added": 6,
+      "vocab_size": 1172,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 1,
+      "budget": 25,
+      "matched_train_fingerprint": "fe257714b858cef2e0a6bf005c056f5cbb28a573cb4336a8787d9b906bf3102c",
+      "n_matched": 25,
+      "n_tie_inclusive": 31,
+      "n_tied_added": 6,
+      "vocab_size": 1320,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 2,
+      "budget": 25,
+      "matched_train_fingerprint": "c95ad97d9c9a4bbd22e1f4cf8775dbeea146569a39a12f024f6c3e61561d00bd",
+      "n_matched": 25,
+      "n_tie_inclusive": 31,
+      "n_tied_added": 6,
+      "vocab_size": 1162,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 3,
+      "budget": 25,
+      "matched_train_fingerprint": "ca38336e6f51dbc24a360773bd2d411ced44eb4a406cfca274fd4e00eca7bb6b",
+      "n_matched": 25,
+      "n_tie_inclusive": 31,
+      "n_tied_added": 6,
+      "vocab_size": 1247,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 4,
+      "budget": 25,
+      "matched_train_fingerprint": "f098228f3e92d8c683f244b5220c88e71a40ad5ee3d8b76aff55b4398b1683b1",
+      "n_matched": 25,
+      "n_tie_inclusive": 31,
+      "n_tied_added": 6,
+      "vocab_size": 1296,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 0,
+      "budget": 50,
+      "matched_train_fingerprint": "efc266d15154460e6defc080cd254acc7a762e6bcd87a0fb5c41b39f34d698f7",
+      "n_matched": 50,
+      "n_tie_inclusive": 56,
+      "n_tied_added": 6,
+      "vocab_size": 2235,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 1,
+      "budget": 50,
+      "matched_train_fingerprint": "13a966411c37bb7e444027d774985f57dcb892116549d4df555c37f7b835457d",
+      "n_matched": 50,
+      "n_tie_inclusive": 56,
+      "n_tied_added": 6,
+      "vocab_size": 2366,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 2,
+      "budget": 50,
+      "matched_train_fingerprint": "03d94f57fda72f46ccda908ff560d4695bdef37f1818f8d038bae14d3ff66b0d",
+      "n_matched": 50,
+      "n_tie_inclusive": 56,
+      "n_tied_added": 6,
+      "vocab_size": 2080,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 3,
+      "budget": 50,
+      "matched_train_fingerprint": "6b2598deca9c3e5c16a0fc6a32baff9115a8a4a49d526fac798c9ca2edadd316",
+      "n_matched": 50,
+      "n_tie_inclusive": 56,
+      "n_tied_added": 6,
+      "vocab_size": 2254,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 4,
+      "budget": 50,
+      "matched_train_fingerprint": "e353843f83fb02e74352d5cbf8e60a4f455fb7612511b583c85323bdc4421556",
+      "n_matched": 50,
+      "n_tie_inclusive": 56,
+      "n_tied_added": 6,
+      "vocab_size": 2426,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 0,
+      "budget": 100,
+      "matched_train_fingerprint": "a6feb6261f9365c4589e59cb2a321fe7a2be17c9c294db9f69b34549ae6cd1b0",
+      "n_matched": 100,
+      "n_tie_inclusive": 106,
+      "n_tied_added": 6,
+      "vocab_size": 4139,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 1,
+      "budget": 100,
+      "matched_train_fingerprint": "970176ce682b4399c13ea9df919a7969bbdadcb6b3854a9e941a69db724c3ffa",
+      "n_matched": 100,
+      "n_tie_inclusive": 106,
+      "n_tied_added": 6,
+      "vocab_size": 4157,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 2,
+      "budget": 100,
+      "matched_train_fingerprint": "30c49fed60c867cd3cae09fcea8904bb824c3285e16a588de3f14b2ff8b0f314",
+      "n_matched": 100,
+      "n_tie_inclusive": 106,
+      "n_tied_added": 6,
+      "vocab_size": 3934,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 3,
+      "budget": 100,
+      "matched_train_fingerprint": "94c61eb7313bf00bc42f7f57ef3e5610917614dc9a577a3e393cbca7686f02bc",
+      "n_matched": 100,
+      "n_tie_inclusive": 106,
+      "n_tied_added": 6,
+      "vocab_size": 4001,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 4,
+      "budget": 100,
+      "matched_train_fingerprint": "a3a6ba1eb5a862aea2088d0609f08f397deb13a72a061e210ac3980bd6490b73",
+      "n_matched": 100,
+      "n_tie_inclusive": 106,
+      "n_tied_added": 6,
+      "vocab_size": 4235,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 0,
+      "budget": 200,
+      "matched_train_fingerprint": "f2752a40d84d59636b1a66fa76f5207bc101ddcd50deb8f35483a190779c30de",
+      "n_matched": 200,
+      "n_tie_inclusive": 206,
+      "n_tied_added": 6,
+      "vocab_size": 7715,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 1,
+      "budget": 200,
+      "matched_train_fingerprint": "2a7ccc73d56685b9832c235aaa9bcacf57ae7155ae66a59d8aa434767641a6b9",
+      "n_matched": 200,
+      "n_tie_inclusive": 206,
+      "n_tied_added": 6,
+      "vocab_size": 7777,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 2,
+      "budget": 200,
+      "matched_train_fingerprint": "c7745ace77cb7b840c90fdd6a459e4fa39e0c42328d6509d0f8c569fec27015f",
+      "n_matched": 200,
+      "n_tie_inclusive": 206,
+      "n_tied_added": 6,
+      "vocab_size": 7490,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 3,
+      "budget": 200,
+      "matched_train_fingerprint": "8b1e45a90861d2c6e75db075eb3f93914ed9b535e632bbd965e209fd95a6cf33",
+      "n_matched": 200,
+      "n_tie_inclusive": 206,
+      "n_tied_added": 6,
+      "vocab_size": 7581,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 4,
+      "budget": 200,
+      "matched_train_fingerprint": "a816391acebfce8f6076a9563860ffca6a796c15ec4094d792e407bcb8628832",
+      "n_matched": 200,
+      "n_tie_inclusive": 206,
+      "n_tied_added": 6,
+      "vocab_size": 7652,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 0,
+      "budget": 300,
+      "matched_train_fingerprint": "3bb6fc300fe5135a78cdbc0ed14b4e819df191f5f9110c06cf8872447529edf1",
+      "n_matched": 300,
+      "n_tie_inclusive": 306,
+      "n_tied_added": 6,
+      "vocab_size": 10891,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 1,
+      "budget": 300,
+      "matched_train_fingerprint": "bb2437cc2eca7bf702b94ecf6220dfac8325dea2b52c9d407141d813d85fcfc2",
+      "n_matched": 300,
+      "n_tie_inclusive": 306,
+      "n_tied_added": 6,
+      "vocab_size": 10825,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 2,
+      "budget": 300,
+      "matched_train_fingerprint": "8aa4e331d3f5c2587ad75ec814b7b7ca4c3570ad170baf3706f2857ed4f64b84",
+      "n_matched": 300,
+      "n_tie_inclusive": 306,
+      "n_tied_added": 6,
+      "vocab_size": 10793,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 3,
+      "budget": 300,
+      "matched_train_fingerprint": "da536edbc15fef349a0388c5ac7fd8f25f8009da738d276d105db90464038565",
+      "n_matched": 300,
+      "n_tie_inclusive": 306,
+      "n_tied_added": 6,
+      "vocab_size": 10826,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    },
+    {
+      "seed": 4,
+      "budget": 300,
+      "matched_train_fingerprint": "5e4bb9a3972454727d1be84c235ce597b110cd87f93863a9dbc04d2f858a7eda",
+      "n_matched": 300,
+      "n_tie_inclusive": 306,
+      "n_tied_added": 6,
+      "vocab_size": 10895,
+      "matched_conditions_share_features": true,
+      "tie_inclusive_uses_same_vocabulary": true
+    }
+  ]
+}

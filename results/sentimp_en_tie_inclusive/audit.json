@@ -1,0 +1,26 @@
+{
+  "input": "data/sentimp_en_votes.jsonl",
+  "labels": [
+    "negative",
+    "neutral",
+    "positive"
+  ],
+  "split_sizes": {
+    "train": 337,
+    "dev": 48,
+    "test": 95
+  },
+  "tied_rows_by_split": {
+    "train": 6,
+    "dev": 1,
+    "test": 2
+  },
+  "normalized_split_overlap": "none",
+  "conditions": [
+    "majority_ce",
+    "human_soft_targets",
+    "label_smoothing",
+    "human_soft_targets_tie_inclusive"
+  ],
+  "tie_inclusive_note": "The tie-inclusive soft-target condition includes matched non-tied examples plus up to floor(budget/3) tied examples; this changes training composition and is reported separately, not as a matched comparison."
+}
