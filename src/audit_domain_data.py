@@ -12,6 +12,7 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
+from matplotlib.pylab import seed
 import numpy as np
 
 from config import RES
@@ -87,6 +88,98 @@ def audit_domain(name, loader, seed=42):
         "all_splits_disjoint_by_normalized_text": all(v == 0 for v in overlaps.values()),
     }
 
+AIRLINE_SOURCE_URL = (
+    "https://raw.githubusercontent.com/"
+    "MrColinHan/Twitter-US-Airline-Sentiment/master/"
+    "Kaggle_Tweets.csv"
+)
+
+
+def audit_airline_raw_source(splits, seed=42):
+    """Inspect duplicate airline source records without changing labels."""
+    request = urllib.request.Request(
+        AIRLINE_SOURCE_URL,
+        headers={"User-Agent": "NLP-Sentiment-Data-Audit/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        content = response.read().decode("utf-8-sig")
+
+    reader = csv.DictReader(content.splitlines())
+    if not reader.fieldnames:
+        raise ValueError("Airline CSV has no header")
+
+    columns = {name.strip().lower(): name for name in reader.fieldnames}
+    if "text" not in columns or "airline_sentiment" not in columns:
+        raise ValueError(
+            f"Unexpected airline CSV columns: {reader.fieldnames}"
+        )
+
+    def field(row, name):
+        original = columns.get(name)
+        return row.get(original, "") if original else ""
+
+    # Map the production loader's actual partitions by normalized text.
+    split_by_text = {}
+    for split_name, (texts, labels) in splits.items():
+        for text, label in zip(texts, labels):
+            split_by_text.setdefault(norm(text), set()).add(split_name)
+
+    groups = {}
+    row_count = 0
+
+    for row_index, row in enumerate(reader, start=2):
+        row_count += 1
+        text = field(row, "text")
+        normalized = norm(text)
+        if not normalized:
+            continue
+
+        groups.setdefault(normalized, []).append({
+            "source_row_number": row_index,
+            "text": text,
+            "sentiment": field(row, "airline_sentiment"),
+            "confidence": field(row, "airline_sentiment_confidence"),
+            "airline": field(row, "airline"),
+            "tweet_id": field(row, "tweet_id"),
+            "negative_reason": field(row, "negativereason"),
+        })
+
+    duplicate_groups = []
+    conflicting_groups = []
+
+    for normalized, records in sorted(groups.items()):
+        if len(records) < 2:
+            continue
+
+        labels = sorted({record["sentiment"] for record in records})
+        partitions = sorted(split_by_text.get(normalized, set()))
+
+        group = {
+            "normalized_text": normalized,
+            "record_count": len(records),
+            "distinct_original_labels": labels,
+            "conflicting_labels": len(labels) > 1,
+            "production_split_assignments": partitions or ["excluded_by_loader"],
+            "records": records,
+        }
+        duplicate_groups.append(group)
+
+        if len(labels) > 1:
+            conflicting_groups.append(group)
+
+    return {
+        "source_url": AIRLINE_SOURCE_URL,
+        "source_row_count": row_count,
+        "seed": seed,
+        "duplicate_group_count": len(duplicate_groups),
+        "conflicting_label_group_count": len(conflicting_groups),
+        "duplicate_groups": duplicate_groups,
+        "conflicting_label_groups": conflicting_groups,
+        "interpretation": (
+            "Source rows are records, not independent annotator votes. "
+            "Original labels are preserved; no labels are corrected."
+        ),
+    }
 
 def main(output, seed=42):
     report = {
@@ -118,3 +211,12 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     main(args.output, seed=args.seed)
+
+    airline_splits, _ = load_airline(seed=seed)
+    raw_audit = audit_airline_raw_source(airline_splits, seed=seed)
+
+    raw_output = output.parent / "airline_raw_source_audit.json"
+    raw_output.write_text(
+        json.dumps(raw_audit, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )

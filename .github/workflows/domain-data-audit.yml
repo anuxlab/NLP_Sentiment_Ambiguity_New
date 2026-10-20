@@ -68,11 +68,36 @@ jobs:
               sys.exit("Unexpected audit status")
           PYCODE
 
-      - name: Upload forensic audit report
+      
+      - name: Verify detailed forensic report
+        if: success()
+        run: |
+          python - <<'PYCODE'
+          import json
+          from pathlib import Path
+
+          summary = Path("results/domain_data_audit.json")
+          detail = Path("results/airline_raw_source_audit.json")
+
+          if not summary.is_file() or not detail.is_file():
+              raise SystemExit("Required forensic report is missing")
+
+          report = json.loads(detail.read_text(encoding="utf-8"))
+          if "conflicting_label_groups" not in report:
+              raise SystemExit("Detailed report is missing conflict groups")
+
+          print("Detailed report verified")
+          print("Conflicting groups:", report["conflicting_label_group_count"])
+          PYCODE
+
+      - name: Upload forensic audit reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: domain-data-audit-${{ github.run_id }}
-          path: results/domain_data_audit.json
+          path: |
+            results/domain_data_audit.json
+            results/airline_raw_source_audit.json
           if-no-files-found: error
           retention-days: 90
+
