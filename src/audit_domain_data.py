@@ -221,12 +221,3 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
     main(args.output, seed=args.seed)
-
-    airline_splits, _ = load_airline(seed=seed)
-    raw_audit = audit_airline_raw_source(airline_splits, seed=seed)
-
-    raw_output = output.parent / "airline_raw_source_audit.json"
-    raw_output.write_text(
-        json.dumps(raw_audit, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
