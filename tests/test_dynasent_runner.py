@@ -4,7 +4,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from run_dynasent_experiments import evaluate, sample_rows, sample_null_augmented_rows, declared_condition_names
+from run_dynasent_experiments import evaluate, sample_rows, sample_null_augmented_rows, declared_condition_names, build_config_payload
 from dynasent_data import LABELS
 
 
@@ -77,3 +77,24 @@ def test_declared_conditions_match_optional_null_augmented_run():
     augmented = declared_condition_names(True)
     assert augmented == matched + ["human_soft_targets_null_augmented"]
     assert len(augmented) == len(set(augmented))
+
+
+def test_tiny_bert_audit_omits_unused_generic_lr_and_records_effective_lr():
+    from argparse import Namespace
+    args = Namespace(backend="tiny-bert", lr=0.01, tiny_bert_lr=2e-5, round="round1")
+    payload = build_config_payload(args, {"conditions": ["majority_ce"]})
+    assert "lr" not in payload["args"]
+    assert payload["args"]["tiny_bert_lr"] == 2e-5
+    assert payload["audit"]["effective_learning_rate"] == {
+        "parameter": "tiny_bert_lr", "value": 2e-5, "optimizer": "torch.optim.AdamW"
+    }
+
+def test_tfidf_audit_omits_unused_tiny_bert_lr_and_records_effective_lr():
+    from argparse import Namespace
+    args = Namespace(backend="tfidf", lr=0.01, tiny_bert_lr=2e-5, round="round1")
+    payload = build_config_payload(args, {"conditions": ["majority_ce"]})
+    assert "tiny_bert_lr" not in payload["args"]
+    assert payload["args"]["lr"] == 0.01
+    assert payload["audit"]["effective_learning_rate"] == {
+        "parameter": "lr", "value": 0.01, "optimizer": "torch.optim.AdamW"
+    }

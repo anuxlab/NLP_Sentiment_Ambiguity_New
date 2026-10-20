@@ -39,6 +39,30 @@ def declared_condition_names(include_null_soft_only: bool) -> list[str]:
     return names
 
 
+def build_config_payload(args: argparse.Namespace, audit: dict[str, Any]) -> dict[str, Any]:
+    """Build backend-specific audit metadata with one authoritative learning rate."""
+    serialized_args = vars(args).copy()
+    audit_payload = dict(audit)
+    if args.backend == "tiny-bert":
+        serialized_args.pop("lr", None)
+        effective_learning_rate = {
+            "parameter": "tiny_bert_lr",
+            "value": float(args.tiny_bert_lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    elif args.backend == "tfidf":
+        serialized_args.pop("tiny_bert_lr", None)
+        effective_learning_rate = {
+            "parameter": "lr",
+            "value": float(args.lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    else:
+        raise ValueError(f"Unsupported backend for audit metadata: {args.backend!r}")
+    audit_payload["effective_learning_rate"] = effective_learning_rate
+    return {"args": serialized_args, "audit": audit_payload}
+
+
 def seed_everything(seed: int) -> None:
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
@@ -353,8 +377,10 @@ def main():
         p.error("--budget and --epochs must be positive")
     if args.batch_size < 1:
         p.error("--batch-size must be positive")
-    if args.lr <= 0 or args.tiny_bert_lr <= 0:
-        p.error("--lr and --tiny-bert-lr must be positive")
+    if args.backend == "tfidf" and args.lr <= 0:
+        p.error("--lr must be positive for the TF-IDF backend")
+    if args.backend == "tiny-bert" and args.tiny_bert_lr <= 0:
+        p.error("--tiny-bert-lr must be positive for the Tiny-BERT backend")
     data=Path(args.data)
     if not data.exists(): p.error(f"DynaSent archive/path not found: {data}")
     splits=load_dynasent_round(data,args.round)
@@ -387,7 +413,10 @@ def main():
         "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines."
         if args.include_null_soft_only else None
     )
-    (out/"config_and_audit.json").write_text(json.dumps({"args":vars(args),"audit":audit},indent=2),encoding="utf-8")
+    config_payload = build_config_payload(args, audit)
+    (out/"config_and_audit.json").write_text(
+        json.dumps(config_payload, indent=2), encoding="utf-8"
+    )
     (out/"metrics.json").write_text(json.dumps(run_rows,indent=2),encoding="utf-8")
     with (out/"training_manifest.jsonl").open("w",encoding="utf-8") as f:
         for seed in args.seeds:

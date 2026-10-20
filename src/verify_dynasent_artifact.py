@@ -52,6 +52,22 @@ def verify(results_root: Path, backend: str, seeds: list[int], rounds: list[str]
         args=config.get('args',{})
         if args.get('round') != rnd: raise VerificationError(f"{rnd}: config round mismatch: {args.get('round')!r}")
         if args.get('backend') != backend: raise VerificationError(f"{rnd}: expected backend {backend!r}, config says {args.get('backend')!r}")
+        audit=config.get('audit',{})
+        effective_lr=audit.get('effective_learning_rate')
+        if not isinstance(effective_lr, dict):
+            raise VerificationError(f"{rnd}: missing audit.effective_learning_rate metadata")
+        expected_lr_key = 'tiny_bert_lr' if backend == 'tiny-bert' else 'lr'
+        if effective_lr.get('parameter') != expected_lr_key:
+            raise VerificationError(f"{rnd}: effective learning-rate parameter must be {expected_lr_key!r}")
+        configured_lr=args.get(expected_lr_key)
+        if not isinstance(configured_lr,(int,float)) or not math.isfinite(configured_lr) or configured_lr <= 0:
+            raise VerificationError(f"{rnd}: missing or invalid args.{expected_lr_key}")
+        if not close(effective_lr.get('value'), configured_lr, tol=1e-12):
+            raise VerificationError(f"{rnd}: effective learning-rate value conflicts with args.{expected_lr_key}")
+        if backend == 'tiny-bert' and 'lr' in args:
+            raise VerificationError(f"{rnd}: Tiny-BERT config must not include unused generic args.lr")
+        if backend == 'tfidf' and 'tiny_bert_lr' in args:
+            raise VerificationError(f"{rnd}: TF-IDF config must not include unused args.tiny_bert_lr")
         config_seeds=sorted(int(s) for s in args.get('seeds',[]))
         if config_seeds != sorted(seeds): raise VerificationError(f"{rnd}: configured seeds {config_seeds} != requested {sorted(seeds)}")
         configured_conditions=config.get('audit',{}).get('conditions')
@@ -60,13 +76,15 @@ def verify(results_root: Path, backend: str, seeds: list[int], rounds: list[str]
         for row in metrics_json:
             if row.get('round') != rnd or row.get('backend') != backend:
                 raise VerificationError(f"{rnd}: metrics row has wrong round/backend: {row.get('round')}/{row.get('backend')}")
+            if backend == "tiny-bert" and not close(row.get("learning_rate"), configured_lr, tol=1e-12):
+                raise VerificationError(f"{rnd}: metric learning_rate missing or conflicts with effective Tiny-BERT learning rate")
             if int(row.get('seed',-999)) not in seeds: raise VerificationError(f"{rnd}: unexpected seed {row.get('seed')}")
             if row.get('condition') not in expected_conditions: raise VerificationError(f"{rnd}: unexpected condition {row.get('condition')}")
         # CSV and JSON representations must agree on their identity matrix.
         def ident(r): return (r.get('round'),r.get('backend'),str(r.get('seed')),r.get('condition'))
         if Counter(ident(x) for x in csv_rows) != Counter(ident(x) for x in metrics_json):
             raise VerificationError(f"{rnd}: metrics.csv and metrics.json identity rows differ")
-        metric_rows.extend(metrics_json); configs.append({'round':rnd,'backend':backend,'seeds':config_seeds,'budget':args.get('budget'),'epochs':args.get('epochs'),'eval_size':args.get('eval_size'),'tiny_bert_lr':args.get('tiny_bert_lr')})
+        metric_rows.extend(metrics_json); configs.append({'round':rnd,'backend':backend,'seeds':config_seeds,'budget':args.get('budget'),'epochs':args.get('epochs'),'eval_size':args.get('eval_size'),'effective_learning_rate':effective_lr})
         preds=read_jsonl(d/'predictions.jsonl')
         for p in preds:
             if p.get('round') != rnd or p.get('backend') != backend: raise VerificationError(f"{rnd}: prediction has wrong round/backend")
