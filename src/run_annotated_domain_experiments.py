@@ -2,8 +2,9 @@
 
 Run the dataset audit first:
   python src/annotated_domains.py --output results/annotated_domain_audit.json
-Then:
-  python src/run_annotated_domain_experiments.py --dataset mvsc --seeds 0 1 2 3 4
+Start with the dataset that passed the uploaded source audit:
+  python src/run_annotated_domain_experiments.py --dataset sentimp_en --seeds 0 1 2 3 4
+MVSC is blocked by its conflicting duplicate group until the source rows are reviewed.
 """
 from __future__ import annotations
 
@@ -132,8 +133,19 @@ def main(args):
     audit = audit_records(args.dataset, records, seed=args.split_seed)
     if audit["status"] == "FAIL" or not audit["all_splits_disjoint"]:
         raise SystemExit(f"Dataset failed split integrity audit: {audit}")
-    if audit["status"] == "REVIEW" and not args.allow_review:
-        raise SystemExit("Dataset audit is REVIEW. Inspect duplicate conflicts; pass --allow-review only after review.")
+    if audit["status"] != "PASS" and not args.allow_review:
+        raise SystemExit(
+            f"Dataset audit status is {audit['status']}. Training is blocked until the issue is reviewed; "
+            "--allow-review is an explicit override and must only be used after documenting the decision."
+        )
+    if audit["status"] != "PASS":
+        print("WARNING: proceeding with a REVIEW dataset because --allow-review was supplied.", file=sys.stderr)
+    print(
+        "Tie policy: tied-majority examples are excluded from the matched training subset for all three "
+        "conditions (majority CE requires a single gold class); they remain in the test set for JS/Brier "
+        "evaluation against observed vote distributions. Hard-label accuracy and macro-F1 omit tied test rows.",
+        flush=True,
+    )
     splits = split_records(records, seed=args.split_seed)
     train, dev, test = splits["train"], splits["dev"], splits["test"]
     if args.budgets:
@@ -177,5 +189,6 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=0.01)
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--label-smoothing", type=float, default=0.1)
-    parser.add_argument("--allow-review", action="store_true")
+    parser.add_argument("--allow-review", action="store_true",
+                        help="Override a REVIEW audit only after manually reviewing and documenting the issue")
     main(parser.parse_args())

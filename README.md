@@ -60,7 +60,7 @@ Data (SST-2 from GitHub, NLTK movie_reviews) is downloaded automatically on firs
 
 ## Distribution-aware multi-domain experiments (primary extension)
 
-The primary multi-domain extension uses **DynaSent Round 1/Round 2**, plus **MVSC** and **SentiMP-En** after source-schema and data-quality audit. MVSC contains three independent annotator labels for sentiment on English movie-related tweets; SentiMP-En contains three annotator labels for English political tweets. The adapters preserve the individual labels and compute class vote distributions only from those observed labels.
+The primary multi-domain extension retains **DynaSent Round 1/Round 2** and conditionally adds **SentiMP-En**. **MVSC is on hold** until the conflicting duplicate group is reviewed against source records. Do not treat both new datasets as approved merely because the audit workflow completed. MVSC contains three independent annotator labels for sentiment on English movie-related tweets; SentiMP-En contains three annotator labels for English political tweets. The adapters preserve the individual labels and compute class vote distributions only from those observed labels.
 
 Financial PhraseBank and Twitter US Airline Sentiment are **not part of the primary distribution-aware experiments**: their current loaders expose agreement tiers or worker confidence, not per-example class-vote distributions. The old `run_experiments.py --domain finance|airline` path remains available only for reproducing legacy exploratory hard-label results; do not mix those results with the human-distribution JS-divergence experiments.
 
@@ -72,14 +72,17 @@ python src/annotated_domains.py --output results/annotated_domain_audit.json
 
 The audit reports label/vote counts, ties, duplicates, duplicate groups with different vote counts, split overlaps, and mean human-vote entropy. A `REVIEW` result requires manual inspection before training; it is not a clean pass.
 
-### 2. Run matched soft-target experiments
+### 2. Run the first matched soft-target pilot
+
+SentiMP-En passed the current loader/split audit (480 records; no duplicate normalized texts; three observed votes per row). Start with it:
 
 ```bash
-python src/run_annotated_domain_experiments.py --dataset mvsc --seeds 0 1 2 3 4
 python src/run_annotated_domain_experiments.py --dataset sentimp_en --seeds 0 1 2 3 4
 ```
 
-The CPU-friendly TF-IDF pilot compares majority-label cross-entropy, empirical human-distribution soft-target cross-entropy, and label smoothing on the same non-tied training examples. The primary metric is JS divergence against observed annotator vote proportions; soft Brier score, accuracy, macro-F1, and training time are also recorded. Tied-majority rows are preserved in the dataset audit and test set, but excluded from the matched three-condition training subset because majority CE requires a single gold class. Null-majority augmentation is not enabled for these datasets in this initial implementation.
+Do **not** run MVSC yet. Its audit reports a duplicate group for `deadpool tonight!` with differing vote counts. Inspect the original source rows and document the decision before rerunning its audit. The runner blocks any dataset with audit status `REVIEW` unless `--allow-review` is explicitly supplied after review.
+
+The CPU-friendly TF-IDF pilot compares majority-label cross-entropy, empirical human-distribution soft-target cross-entropy, and label smoothing on the same non-tied training examples. The primary metric is JS divergence against observed annotator vote proportions; soft Brier score, accuracy, macro-F1, and training time are also recorded. Tied-majority rows are preserved in the dataset audit and test set, but excluded from the matched three-condition training subset because majority CE requires a single gold class. The runner prints this policy at startup; JS divergence and soft Brier still use observed vote distributions for every test row, while accuracy and macro-F1 omit tied test rows. Null-majority augmentation is not enabled for these datasets in this initial implementation.
 
 Results append to `results/annotated_domain_results.jsonl`; per-dataset audit reports are saved under `results/`. This is a separate experiment path and does not change DynaSent's existing runner, results, or MLM checkpoint.
 
