@@ -34,9 +34,24 @@ def make_input(root: Path, mixed_backend=False, omit_condition=False):
                     pred_rows.append({"round":rnd,"backend":"tfidf" if mixed_backend and rnd=="round2" else "tiny-bert","seed":seed,"condition":cond,
                       "text_id":f"{rnd}-{i}","gold_label":"negative","human_distribution":human,
                       "predicted_distribution":pred,"predicted_label":"negative","js_divergence_bits":val})
+                group_preds=[r for r in pred_rows if r["round"]==rnd and r["seed"]==seed and r["condition"]==cond]
+                probs=np.asarray([r["predicted_distribution"] for r in group_preds],dtype=float)
+                targets=np.asarray([r["human_distribution"] for r in group_preds],dtype=float)
+                labels=np.asarray([0 if r["gold_label"]=="negative" else 1 for r in group_preds],dtype=int)
+                hard=probs.argmax(axis=1)
+                from sklearn.metrics import f1_score
+                conf=probs.max(axis=1); edges=np.linspace(0,1,11); ece=0.0
+                for bi in range(10):
+                    mask=(conf>edges[bi]) & (conf<=edges[bi+1])
+                    if mask.any(): ece += float(mask.mean())*abs(float((hard[mask]==labels[mask]).mean())-float(conf[mask].mean()))
                 metric_rows.append({"round":rnd,"backend":"tiny-bert","seed":seed,"condition":cond,"n_test":n,
                   "js_divergence_mean_bits":float(np.mean(js)),"js_divergence_median_bits":float(np.median(js)),
-                  "macro_f1":0.5,"accuracy":0.6,"soft_brier_score":0.2,"ece_10bin":0.1,"train_time_s":1.0})
+                  "macro_f1":float(f1_score(labels,hard,labels=list(range(4)),average="macro",zero_division=0)),
+                  "accuracy":float(np.mean(labels==hard)),"soft_brier_score":float(np.mean(np.sum((probs-targets)**2,axis=1))),
+                  "ece_10bin":ece,"train_time_s":1.0,"learning_rate":2e-5})
+        cfg={"args":{"round":rnd,"backend":"tiny-bert","seeds":[0,1],"tiny_bert_lr":2e-5},
+             "audit":{"effective_learning_rate":{"parameter":"tiny_bert_lr","value":2e-5,"optimizer":"torch.optim.AdamW"}}}
+        (d/"config_and_audit.json").write_text(json.dumps(cfg))
         pd.DataFrame(metric_rows).to_csv(d/"metrics.csv",index=False)
         with (d/"predictions.jsonl").open("w") as f:
             for row in pred_rows: f.write(json.dumps(row)+"\n")
@@ -71,4 +86,27 @@ def test_rejects_mixed_backends(tmp_path):
 def test_rejects_missing_condition_in_metrics(tmp_path):
     inp=tmp_path/"input"; make_input(inp,omit_condition=True)
     with pytest.raises(ValueError, match="Expected all four research conditions"):
+        run_analysis(inp,tmp_path/"out",expected_seeds=[0,1],n_boot=100,n_perm=100)
+
+
+def test_analysis_manifest_records_effective_lr_and_removes_legacy_note(tmp_path):
+    inp=tmp_path/"input"; out=tmp_path/"analysis"; make_input(inp)
+    manifest=run_analysis(inp,out,expected_seeds=[0,1],n_boot=100,n_perm=100,random_seed=7)
+    assert manifest["effective_learning_rate"]["parameter"] == "tiny_bert_lr"
+    assert manifest["effective_learning_rate"]["value"] == 2e-5
+    assert "learning_rate_note" not in manifest
+    assert manifest["provenance_checks"]["metrics_recomputed_from_predictions"] is True
+
+
+def test_analysis_rejects_legacy_lr_field_in_tiny_bert_config(tmp_path):
+    inp=tmp_path/"input"; make_input(inp)
+    cfg=inp/"round1"/"config_and_audit.json"; obj=json.loads(cfg.read_text()); obj["args"]["lr"]=0.01; cfg.write_text(json.dumps(obj))
+    with pytest.raises(ValueError, match="legacy args.lr"):
+        run_analysis(inp,tmp_path/"out",expected_seeds=[0,1],n_boot=100,n_perm=100)
+
+
+def test_analysis_rejects_learning_rate_mismatch_in_metrics(tmp_path):
+    inp=tmp_path/"input"; make_input(inp)
+    p=inp/"round2"/"metrics.csv"; m=pd.read_csv(p); m.loc[0,"learning_rate"]=0.01; m.to_csv(p,index=False)
+    with pytest.raises(ValueError, match="metric learning_rate"):
         run_analysis(inp,tmp_path/"out",expected_seeds=[0,1],n_boot=100,n_perm=100)

@@ -39,30 +39,6 @@ def declared_condition_names(include_null_soft_only: bool) -> list[str]:
     return names
 
 
-def build_config_payload(args: argparse.Namespace, audit: dict[str, Any]) -> dict[str, Any]:
-    """Build backend-specific audit metadata with one authoritative learning rate."""
-    serialized_args = vars(args).copy()
-    audit_payload = dict(audit)
-    if args.backend == "tiny-bert":
-        serialized_args.pop("lr", None)
-        effective_learning_rate = {
-            "parameter": "tiny_bert_lr",
-            "value": float(args.tiny_bert_lr),
-            "optimizer": "torch.optim.AdamW",
-        }
-    elif args.backend == "tfidf":
-        serialized_args.pop("tiny_bert_lr", None)
-        effective_learning_rate = {
-            "parameter": "lr",
-            "value": float(args.lr),
-            "optimizer": "torch.optim.AdamW",
-        }
-    else:
-        raise ValueError(f"Unsupported backend for audit metadata: {args.backend!r}")
-    audit_payload["effective_learning_rate"] = effective_learning_rate
-    return {"args": serialized_args, "audit": audit_payload}
-
-
 def seed_everything(seed: int) -> None:
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
@@ -413,9 +389,27 @@ def main():
         "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines."
         if args.include_null_soft_only else None
     )
-    config_payload = build_config_payload(args, audit)
+    # Store only backend-relevant LR settings. Keep the effective optimizer LR
+    # explicit and auditable; never serialize a misleading generic LR for BERT.
+    serialized_args = vars(args).copy()
+    if args.backend == "tiny-bert":
+        serialized_args.pop("lr", None)
+        effective_learning_rate = {
+            "parameter": "tiny_bert_lr",
+            "value": float(args.tiny_bert_lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    else:
+        serialized_args.pop("tiny_bert_lr", None)
+        effective_learning_rate = {
+            "parameter": "lr",
+            "value": float(args.lr),
+            "optimizer": "torch.optim.AdamW",
+        }
+    audit["effective_learning_rate"] = effective_learning_rate
     (out/"config_and_audit.json").write_text(
-        json.dumps(config_payload, indent=2), encoding="utf-8"
+        json.dumps({"args": serialized_args, "audit": audit}, indent=2),
+        encoding="utf-8",
     )
     (out/"metrics.json").write_text(json.dumps(run_rows,indent=2),encoding="utf-8")
     with (out/"training_manifest.jsonl").open("w",encoding="utf-8") as f:

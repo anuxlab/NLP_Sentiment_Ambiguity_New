@@ -22,8 +22,9 @@ LABELS = ["negative", "neutral", "positive", "mixed"]
 def _read_round(round_dir: Path, expected_round: str):
     metrics_path = round_dir / "metrics.csv"
     pred_path = round_dir / "predictions.jsonl"
-    if not metrics_path.exists() or not pred_path.exists():
-        raise ValueError(f"{round_dir}: requires metrics.csv and predictions.jsonl")
+    config_path = round_dir / "config_and_audit.json"
+    if not metrics_path.exists() or not pred_path.exists() or not config_path.exists():
+        raise ValueError(f"{round_dir}: requires config_and_audit.json, metrics.csv and predictions.jsonl")
     metrics = pd.read_csv(metrics_path)
     preds = pd.read_json(pred_path, lines=True)
     if metrics.empty or preds.empty:
@@ -38,7 +39,30 @@ def _read_round(round_dir: Path, expected_round: str):
         raise ValueError(f"{round_dir}: round metadata does not match {expected_round}")
     if set(metrics["backend"].astype(str)) != set(preds["backend"].astype(str)):
         raise ValueError(f"{round_dir}: backend mismatch between metrics and predictions")
-    return metrics, preds
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    args = config.get("args", {})
+    audit = config.get("audit", {})
+    backend = str(metrics.backend.iloc[0])
+    if args.get("round") != expected_round or args.get("backend") != backend:
+        raise ValueError(f"{config_path}: round/backend provenance does not match metrics")
+    lr_key = "tiny_bert_lr" if backend == "tiny-bert" else "lr"
+    effective_lr = audit.get("effective_learning_rate")
+    if not isinstance(effective_lr, dict) or effective_lr.get("parameter") != lr_key:
+        raise ValueError(f"{config_path}: missing or incorrect effective_learning_rate provenance")
+    configured_lr = args.get(lr_key)
+    if not isinstance(configured_lr, (int, float)) or not math.isfinite(float(configured_lr)) or float(configured_lr) <= 0:
+        raise ValueError(f"{config_path}: invalid or missing args.{lr_key}")
+    if "lr" in args and backend == "tiny-bert":
+        raise ValueError(f"{config_path}: legacy args.lr is not permitted in Tiny-BERT metadata")
+    if "tiny_bert_lr" in args and backend == "tfidf":
+        raise ValueError(f"{config_path}: irrelevant args.tiny_bert_lr is not permitted in TF-IDF metadata")
+    if not math.isclose(float(effective_lr.get("value", float("nan"))), float(configured_lr), rel_tol=0, abs_tol=1e-12):
+        raise ValueError(f"{config_path}: effective learning rate conflicts with args.{lr_key}")
+    if backend == "tiny-bert":
+        lr_values = pd.to_numeric(metrics.get("learning_rate"), errors="coerce")
+        if lr_values.isna().any() or not np.allclose(lr_values.to_numpy(), float(configured_lr), rtol=0, atol=1e-12):
+            raise ValueError(f"{metrics_path}: metric learning_rate does not match effective Tiny-BERT learning rate")
+    return metrics, preds, config
 
 
 def discover_round_dirs(root: Path):
@@ -135,6 +159,63 @@ def _entropy_bits(value):
     return float(-(p * np.log2(p)).sum())
 
 
+def _ece_from_predictions(probabilities, labels, bins=10):
+    probs = np.asarray(probabilities, dtype=float)
+    y = np.asarray(labels, dtype=int)
+    if len(y) == 0:
+        return float("nan")
+    conf = probs.max(axis=1)
+    guess = probs.argmax(axis=1)
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    ece = 0.0
+    for i in range(bins):
+        mask = (conf > edges[i]) & (conf <= edges[i + 1])
+        if mask.any():
+            ece += float(mask.mean()) * abs(float((guess[mask] == y[mask]).mean()) - float(conf[mask].mean()))
+    return ece
+
+
+def _audit_metric_rows(metrics, preds):
+    """Cross-check aggregate metrics against raw per-example predictions."""
+    label_ids = {name: i for i, name in enumerate(LABELS)}
+    from sklearn.metrics import f1_score
+    for _, metric in metrics.iterrows():
+        key = (str(metric["round"]), int(metric["seed"]), str(metric["condition"]))
+        group = preds[(preds["round"].astype(str) == key[0]) &
+                      (pd.to_numeric(preds["seed"]).astype(int) == key[1]) &
+                      (preds["condition"].astype(str) == key[2])]
+        if len(group) != int(metric["n_test"]):
+            raise ValueError(f"n_test mismatch for {key}: metrics={metric['n_test']}, predictions={len(group)}")
+        probs = np.asarray([_canonical_dist(x) for x in group["predicted_distribution"]], dtype=float)
+        targets = np.asarray([_canonical_dist(x) for x in group["human_distribution"]], dtype=float)
+        js_values = pd.to_numeric(group["js_divergence_bits"], errors="coerce").to_numpy(dtype=float)
+        recomputed_js = np.asarray([_js_divergence_bits(p, q) for p, q in zip(probs, targets)])
+        if not np.all(np.isfinite(js_values)) or not np.allclose(js_values, recomputed_js, rtol=0, atol=2e-4):
+            raise ValueError(f"per-example JS mismatch for {key}")
+        checks = (("js_divergence_mean_bits", float(js_values.mean())),
+                  ("js_divergence_median_bits", float(np.median(js_values))),
+                  ("soft_brier_score", float(np.mean(np.sum((probs-targets)**2, axis=1)))))
+        for column, observed in checks:
+            if column in metric and pd.notna(metric[column]) and not math.isclose(float(metric[column]), observed, rel_tol=0, abs_tol=2e-4):
+                raise ValueError(f"{column} mismatch for {key}: metrics={metric[column]}, predictions={observed}")
+        valid = group["gold_label"].notna().to_numpy()
+        if "n_with_majority_gold" in metric and int(valid.sum()) != int(metric["n_with_majority_gold"]):
+            raise ValueError(f"n_with_majority_gold mismatch for {key}")
+        if valid.any():
+            labels=[]
+            for label in group.loc[valid, "gold_label"].astype(str):
+                if label not in label_ids:
+                    raise ValueError(f"unknown gold label {label!r} for {key}")
+                labels.append(label_ids[label])
+            y=np.asarray(labels,dtype=int); hard=probs[valid].argmax(axis=1)
+            computed={"accuracy":float(np.mean(y==hard)),
+                      "macro_f1":float(f1_score(y,hard,labels=list(range(len(LABELS))),average="macro",zero_division=0)),
+                      "ece_10bin":float(_ece_from_predictions(probs[valid],y))}
+            for column, observed in computed.items():
+                if column in metric and pd.notna(metric[column]) and not math.isclose(float(metric[column]), observed, rel_tol=0, abs_tol=2e-4):
+                    raise ValueError(f"{column} mismatch for {key}: metrics={metric[column]}, predictions={observed}")
+
+
 def _holm(p_values):
     p = np.asarray(p_values, dtype=float)
     n = len(p); order = np.argsort(p); adjusted = np.empty(n, dtype=float)
@@ -196,12 +277,13 @@ def _summarize_seed_metrics(metrics):
     return pd.DataFrame(rows)
 
 
-def run_analysis(input_root: Path, output_dir: Path, expected_seeds=None, n_boot=10000, n_perm=10000, random_seed=20261019):
+def run_analysis(input_root: Path, output_dir: Path, expected_seeds=None, n_boot=10000, n_perm=10000, random_seed=20261019, source_run_id=None, source_artifact_name=None):
     rounds = discover_round_dirs(input_root)
-    all_m=[]; all_p=[]; backend=None; seed_union=None; condition_union=None
+    all_m=[]; all_p=[]; all_configs=[]; backend=None; seed_union=None; condition_union=None
     for rnd, d in rounds.items():
-        m,p = _read_round(d, rnd)
+        m,p,config = _read_round(d, rnd)
         be,seeds,conditions = _validate_matrix(m,p,expected_seeds=expected_seeds)
+        all_configs.append(config)
         if backend is not None and be != backend: raise ValueError("Backend differs between rounds")
         backend=be
         if seed_union is not None and seeds != seed_union: raise ValueError("Seed sets differ across rounds")
@@ -210,6 +292,11 @@ def run_analysis(input_root: Path, output_dir: Path, expected_seeds=None, n_boot
         all_m.append(m); all_p.append(p)
     metrics=pd.concat(all_m,ignore_index=True); preds=pd.concat(all_p,ignore_index=True)
     if len(rounds) != 2: raise ValueError("Both DynaSent rounds are required")
+    _audit_metric_rows(metrics, preds)
+    lr_key = "tiny_bert_lr" if backend == "tiny-bert" else "lr"
+    effective_lr_values = [float(c["audit"]["effective_learning_rate"]["value"]) for c in all_configs]
+    if not np.allclose(effective_lr_values, effective_lr_values[0], rtol=0, atol=1e-12):
+        raise ValueError("Effective learning rate differs across rounds")
     # Human-vote-derived disagreement tier; never model confidence.
     preds["human_entropy_bits"] = preds.human_distribution.map(_entropy_bits)
     preds["disagreement_tier"] = np.where(preds.human_entropy_bits <= 1e-8, "unanimous", "non_unanimous")
@@ -279,10 +366,12 @@ def run_analysis(input_root: Path, output_dir: Path, expected_seeds=None, n_boot
     manifest={"status":"passed","backend":backend,"rounds":["round1","round2"],"seeds":seed_union,"conditions":condition_union,
       "metric_records":int(len(metrics)),"prediction_rows":int(len(preds)),"primary_metric":"mean per-example JS divergence in bits; lower is better",
       "primary_contrast":"human_soft_targets - majority_ce; negative favors human soft targets",
-      "bootstrap":{"replicates":n_boot,"unit":"test text_id resampled with replacement; five trained seeds held fixed","interval":"percentile 95%"},
-      "permutation":{"replicates":n_perm,"method":"two-sided paired sign-flip over per-example differences averaged across fixed seeds"},
-      "holm_family":"two primary round-specific JS tests only","interpretation":"Exploratory: the five-seed runs were already inspected; p-values are conditional on these fitted models and do not estimate between-training-run uncertainty.",
-      "learning_rate_note":"Analysis reads recorded per-run metrics; legacy config args.lr may differ from effective tiny_bert_lr. Effective learning_rate in metric rows is the training value."}
+      "effective_learning_rate":{"parameter":lr_key,"value":effective_lr_values[0],"optimizer":"torch.optim.AdamW","source":"config_and_audit.json audit.effective_learning_rate, cross-checked against per-run metrics"},
+      "source":{"github_actions_run_id":str(source_run_id) if source_run_id is not None else None,"artifact_name":source_artifact_name},
+      "provenance_checks":{"round_configs_validated":len(all_configs),"backend_and_round_match":True,"learning_rate_matches_config_and_metrics":True,"metrics_recomputed_from_predictions":True},
+      "bootstrap":{"replicates":n_boot,"unit":"test text_id resampled with replacement after averaging matched differences across five fixed trained seeds","interval":"percentile 95%"},
+      "permutation":{"replicates":n_perm,"method":"two-sided paired sign-flip over per-example differences averaged across fixed seeds","interpretation":"conditional on the observed fitted models; assumes paired item differences are sign-exchangeable under the null"},
+      "holm_family":"two primary round-specific JS tests only","interpretation":"Exploratory: these five-seed runs and test results were already inspected; p-values and bootstrap intervals condition on the fitted models and do not estimate between-training-run uncertainty."}
     (output_dir/"analysis_manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
     _write_report(output_dir,manifest,pd.DataFrame(primary),seed_summary,pd.DataFrame(secondary),pd.DataFrame(tier_rows))
     _write_plots(output_dir,seed_summary,pd.DataFrame(primary),pd.DataFrame(secondary))
@@ -292,13 +381,13 @@ def run_analysis(input_root: Path, output_dir: Path, expected_seeds=None, n_boot
 def _write_report(out, manifest, primary, summary, secondary, tiers):
     lines=["# DynaSent Statistical Validation and Results Analysis","",f"**Analysis status:** {manifest['status']}","", "## Dataset and completeness", "",
       f"- Backend: `{manifest['backend']}` (analyzed separately; mixed backends rejected)",f"- Rounds: {', '.join(manifest['rounds'])}",f"- Seeds: {manifest['seeds']}",f"- Conditions: {', '.join(manifest['conditions'])}",
-      f"- Metric records: {manifest['metric_records']}; prediction rows: {manifest['prediction_rows']}","- Test IDs, human distributions, backend labels, and per-group JS means were checked for consistency.","",
-      "## Primary outcome", "", "Mean per-example Jensen–Shannon divergence (base 2, bits); lower is better. The contrast is human soft targets minus majority-label CE; negative values favor human soft targets.","",
+      f"- Metric records: {manifest['metric_records']}; prediction rows: {manifest['prediction_rows']}","- Test IDs, human distributions, backend labels, per-group JS means, Brier scores, majority-label metrics, and effective learning-rate provenance were checked for consistency.","",
+      f"- Effective learning rate: `{manifest['effective_learning_rate']['parameter']} = {manifest['effective_learning_rate']['value']}`; validated against round configs and metric rows.","", "## Primary outcome", "", "Mean per-example Jensen–Shannon divergence (base 2, bits); lower is better. The contrast is human soft targets minus majority-label CE; negative values favor human soft targets.","",
       "| Round | Test examples | Mean JS difference | Paired example bootstrap 95% CI | Sign-flip p | Holm-adjusted p | Per-seed mean Δ (SD) |",
       "|---|---:|---:|---:|---:|---:|---:|"]
     for _,r in primary.iterrows():
         lines.append(f"| {r['round']} | {int(r['n_test_examples'])} | {r['js_delta_treatment_minus_baseline']:.6f} | [{r['bootstrap_95ci_low']:.6f}, {r['bootstrap_95ci_high']:.6f}] | {r['paired_example_signflip_p_two_sided']:.6g} | {r['holm_adjusted_p_two_primary_round_tests']:.6g} | {r['per_seed_delta_mean']:.6f} ({r['per_seed_delta_sd']:.6f}) |")
-    lines += ["", "**Inference caveat:** these runs have already been inspected; all inferential outputs here are exploratory. Bootstrap intervals resample test examples while holding the five trained seeds fixed. They do not capture full training-run uncertainty. The sign-flip p-values are conditional on the observed fitted models and test examples; do not describe them as preregistered confirmatory evidence.","", "## Metrics by condition", "", "`metric_summary_by_condition.csv` reports means and sample SDs across seeds for JS divergence, macro-F1, accuracy, soft Brier, ECE, and runtime. Macro-F1/accuracy are defined on examples with valid majority labels by the runner. Calibration and Brier results are descriptive secondary outcomes.","", "## Secondary and exploratory comparisons", "", "See `secondary_condition_comparisons.csv` for label smoothing and null-augmented soft targets versus majority CE. Null-augmented training uses a different training-data composition and is exploratory, not a matched-data causal contrast.","", "## Disagreement-tier analysis", "", "See `disagreement_tier_analysis.csv` for unanimous versus non-unanimous groups derived from human vote distributions, never model confidence. Empty tiers are not fabricated.","", "## Reproducibility outputs", "", "- `primary_js_comparisons.csv`: primary round-specific contrasts and Holm correction.","- `paired_per_seed_deltas.csv`: paired seed-level effects for all alternative conditions.","- `metric_summary_by_condition.csv`: means and sample SDs across seeds.","- `secondary_condition_comparisons.csv`: secondary/exploratory contrasts.","- `disagreement_tier_analysis.csv`: descriptive subgroup results and primary delta intervals.","- `analysis_manifest.json`: settings, data counts, and inference caveats.","- `figures/`: summary figures.","", "## Interpretation guardrails", "", "Do not pool Round 1 and Round 2 into a single headline result. Do not claim universal superiority from the lowest mean alone. Five seeds are a small sample for training-run variability. Treat p-values as exploratory, and do not tune settings against these test results.",""]
+    lines += ["", "**Inference caveat:** these runs have already been inspected; all inferential outputs here are exploratory. Bootstrap intervals resample test examples after averaging paired differences across the five fixed trained seeds. They do not capture full training-run uncertainty. The sign-flip test assumes paired item-level differences are sign-exchangeable under the null; p-values are conditional on the observed fitted models and test examples, not preregistered confirmatory evidence.","", "## Metrics by condition", "", "`metric_summary_by_condition.csv` reports means and sample SDs across seeds for JS divergence, macro-F1, accuracy, soft Brier, ECE, and runtime. Macro-F1/accuracy are defined on examples with valid majority labels by the runner. Calibration and Brier results are descriptive secondary outcomes.","", "## Secondary and exploratory comparisons", "", "See `secondary_condition_comparisons.csv` for label smoothing and null-augmented soft targets versus majority CE. Null-augmented training uses a different training-data composition and is exploratory, not a matched-data causal contrast.","", "## Disagreement-tier analysis", "", "See `disagreement_tier_analysis.csv` for unanimous versus non-unanimous groups derived from human vote distributions, never model confidence. Empty tiers are not fabricated.","", "## Reproducibility outputs", "", "- `primary_js_comparisons.csv`: primary round-specific contrasts and Holm correction.","- `paired_per_seed_deltas.csv`: paired seed-level effects for all alternative conditions.","- `metric_summary_by_condition.csv`: means and sample SDs across seeds.","- `secondary_condition_comparisons.csv`: secondary/exploratory contrasts.","- `disagreement_tier_analysis.csv`: descriptive subgroup results and primary delta intervals.","- `analysis_manifest.json`: settings, data counts, and inference caveats.","- `figures/`: summary figures.","", "## Interpretation guardrails", "", "Do not pool Round 1 and Round 2 into a single headline result. Do not claim universal superiority from the lowest mean alone. Five seeds are a small sample for training-run variability. Treat p-values as exploratory, and do not tune settings against these test results.",""]
     (out/"FINAL_RESULTS_REPORT.md").write_text("\n".join(lines))
 
 
@@ -339,9 +428,11 @@ def main():
     ap.add_argument("--bootstrap-replicates",type=int,default=10000)
     ap.add_argument("--permutation-replicates",type=int,default=10000)
     ap.add_argument("--random-seed",type=int,default=20261019)
+    ap.add_argument("--source-run-id",default=None,help="GitHub Actions run ID that produced the input artifact")
+    ap.add_argument("--source-artifact-name",default=None,help="Name of the source experiment artifact")
     args=ap.parse_args()
     if args.bootstrap_replicates < 100 or args.permutation_replicates < 100: ap.error("use at least 100 bootstrap/permutation replicates")
-    manifest=run_analysis(args.input_dir,args.output_dir,args.expected_seeds,args.bootstrap_replicates,args.permutation_replicates,args.random_seed)
+    manifest=run_analysis(args.input_dir,args.output_dir,args.expected_seeds,args.bootstrap_replicates,args.permutation_replicates,args.random_seed,args.source_run_id,args.source_artifact_name)
     print(json.dumps({"status":manifest["status"],"backend":manifest["backend"],"metric_records":manifest["metric_records"],"prediction_rows":manifest["prediction_rows"],"output_dir":str(args.output_dir)},indent=2))
 
 if __name__=="__main__": main()

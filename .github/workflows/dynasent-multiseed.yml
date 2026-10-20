@@ -146,6 +146,25 @@ jobs:
             --results-root results/dynasent_multiseed \
             --rounds round1 round2 \
             "${aggregate_args[@]}"
+      - name: Verify final experiment artifact provenance and completeness
+        env:
+          BACKEND: ${{ steps.settings.outputs.backend }}
+          SEEDS: ${{ steps.settings.outputs.seeds }}
+          INCLUDE_NULL: ${{ steps.settings.outputs.include_null }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          verify_args=()
+          if [[ "$INCLUDE_NULL" != "true" ]]; then
+            verify_args+=(--allow-three-conditions)
+          fi
+          python src/verify_dynasent_artifact.py \
+            --results-root results/dynasent_multiseed \
+            --backend "$BACKEND" \
+            --seeds $SEEDS \
+            "${verify_args[@]}"
+          test -s results/dynasent_multiseed/verification_report.json
+          python -c 'import json; from pathlib import Path; r=json.loads(Path("results/dynasent_multiseed/verification_report.json").read_text()); assert r["status"] == "passed" and r["all_complete"]'
       - name: Run statistical validation and generate final results analysis
         env:
           BACKEND: ${{ steps.settings.outputs.backend }}
@@ -160,7 +179,9 @@ jobs:
             --output-dir "$analysis_dir" \
             --expected-seeds $SEEDS \
             --bootstrap-replicates 10000 \
-            --permutation-replicates 10000
+            --permutation-replicates 10000 \
+            --source-run-id "$GITHUB_RUN_ID" \
+            --source-artifact-name "dynasent-multiseed-${BACKEND}-${GITHUB_RUN_ID}"
           test -s "$analysis_dir/analysis_manifest.json"
           test -s "$analysis_dir/primary_js_comparisons.csv"
           test -s "$analysis_dir/FINAL_RESULTS_REPORT.md"

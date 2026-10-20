@@ -76,7 +76,7 @@ def verify(results_root: Path, backend: str, seeds: list[int], rounds: list[str]
         for row in metrics_json:
             if row.get('round') != rnd or row.get('backend') != backend:
                 raise VerificationError(f"{rnd}: metrics row has wrong round/backend: {row.get('round')}/{row.get('backend')}")
-            if backend == "tiny-bert" and not close(row.get("learning_rate"), configured_lr, tol=1e-12):
+            if backend == 'tiny-bert' and not close(row.get('learning_rate'), configured_lr, tol=1e-12):
                 raise VerificationError(f"{rnd}: metric learning_rate missing or conflicts with effective Tiny-BERT learning rate")
             if int(row.get('seed',-999)) not in seeds: raise VerificationError(f"{rnd}: unexpected seed {row.get('seed')}")
             if row.get('condition') not in expected_conditions: raise VerificationError(f"{rnd}: unexpected condition {row.get('condition')}")
