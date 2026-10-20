@@ -12,7 +12,6 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from matplotlib.pylab import seed
 import numpy as np
 
 from config import RES
