@@ -1,0 +1,45 @@
+name: Annotated Domain Dataset Audit
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/annotated_domains.py"
+      - "src/run_annotated_domain_experiments.py"
+      - "tests/test_annotated_domains.py"
+      - ".github/workflows/annotated-domain-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: annotated-domain-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+      - name: Run offline unit tests
+        run: pytest -q tests/test_annotated_domains.py
+      - name: Download and audit annotation sources
+        run: python src/annotated_domains.py --output results/annotated_domain_audit.json
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annotated-domain-audit-${{ github.run_id }}
+          path: results/annotated_domain_audit.json
+          if-no-files-found: warn
+          retention-days: 90

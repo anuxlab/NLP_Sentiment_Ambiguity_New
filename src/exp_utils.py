@@ -1,11 +1,10 @@
 """Evaluation sets + single-run helpers used by run_experiments.py and hf_benchmark.py.
 
-Multi-domain (RQ8): `Bundle(domain=...)` supports "sst2" (default, unchanged filenames/behaviour for full
-backward compatibility with existing results), "finance" (Financial PhraseBank, real annotator-agreement
-tiers) and "airline" (Twitter US Airline Sentiment, real per-tweet confidence scores). Every Bundle also
-loads the *test* sets of the other two domains so every run reports in-domain AND cross-domain accuracy
-(cross_<other domain>_acc) in the same result record -- no extra training or storage needed for the
-cross-domain transfer matrix.
+Legacy hard-label runner: `Bundle(domain=...)` retains "sst2", "finance", and "airline" for backward
+compatibility. Only SST-2 is registered in `config.DOMAINS`; finance/airline are not part of the primary
+cross-domain matrix because their current loaders do not expose per-example human vote distributions.
+The distribution-aware multi-domain experiments use `annotated_domains.py` and
+`run_annotated_domain_experiments.py` instead.
 """
 import json, time
 import numpy as np

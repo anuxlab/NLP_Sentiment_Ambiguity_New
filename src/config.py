@@ -22,7 +22,17 @@ TRAIN_SIZES = [100, 300, 1000, 3000, 6920]   # 6920 = full SST-2 train split
 
 # Multi-domain registry (RQ8: cross-domain generalisation). Each domain has its own budgets, scaled to its
 # own training-pool size (train split sizes below are approximate; exact counts printed by data.py loaders).
-DOMAINS = ["sst2", "finance", "airline"]
+# Legacy hard-label cross-domain runner. Finance/Airline remain readable for reproducing
+# archived exploratory runs, but are excluded from the primary distribution-aware study.
+DOMAINS = ["sst2"]
+
+# Primary multi-domain distribution-aware extension. These datasets expose individual
+# human labels; see annotated_domains.py and run_annotated_domain_experiments.py.
+DISTRIBUTIONAL_DOMAINS = ["mvsc", "sentimp_en"]
+DISTRIBUTIONAL_DOMAIN_TRAIN_SIZES = {
+    "mvsc": [50, 100, 300, 700, 1500],
+    "sentimp_en": [25, 50, 100, 200, 300],
+}
 DOMAIN_TRAIN_SIZES = {
     "sst2": TRAIN_SIZES,                      # 6,920 train sentences (movie reviews)
     "finance": [50, 100, 300, 700, 1377],      # 1,377 train sentences (finance news, real agreement tiers)
