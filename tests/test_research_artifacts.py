@@ -28,7 +28,7 @@ def test_stratified_split_is_disjoint_and_exhaustive():
     assert len(set(dev) & set(test)) == 0
     assert sorted(tr + dev + test) == list(range(len(rows)))
     for ids in (tr, dev, test):
-        labels = [rows[i][-1] for i in ids]
+        labels = [rows[i][1] for i in ids]
         assert 0 in labels and 1 in labels
 
 
@@ -141,3 +141,41 @@ def test_github_workflows_keep_training_manual_and_confirmed():
     assert "workflow_dispatch:" in workflow
     assert "inputs.confirmation == 'RUN'" in workflow
     assert "Research Experiment (manual, CPU)" in workflow
+
+
+def test_stratified_split_uses_sentiment_label_not_trailing_metadata():
+    # Mirrors loader schemas: finance's trailing field is agreement tier;
+    # airline's trailing field is continuous worker confidence.
+    finance = [(f"finance-{i}", i % 2, ("100", "66-99", "50-65")[i % 3]) for i in range(120)]
+    airline = [(f"tweet-{i}", i % 2, 0.5 + (i % 50) / 100) for i in range(120)]
+    for rows in (finance, airline):
+        splits = _stratified_split(rows, seed=17)
+        assert sorted(sum(splits, [])) == list(range(len(rows)))
+        assert all(not (set(splits[i]) & set(splits[j])) for i in range(3) for j in range(i + 1, 3))
+        for ids in splits:
+            labels = {rows[i][1] for i in ids}
+            assert labels == {0, 1}
+        # Each label's proportions should be close to the intended 70/10/20 split.
+        for label in (0, 1):
+            total = sum(row[1] == label for row in rows)
+            proportions = [sum(rows[i][1] == label for i in ids) / total for ids in splits]
+            assert np.allclose(proportions, [0.7, 0.1, 0.2], atol=0.04)
+
+
+def test_stratified_split_keeps_normalized_duplicate_text_in_one_partition():
+    rows = [("Same text", 1, "100"), (" same   TEXT ", 1, "66-99"),
+            ("other positive", 1, "50-65"), ("negative one", 0, "50-65"),
+            ("negative two", 0, "100"), ("negative three", 0, "66-99"),
+            ("negative four", 0, "50-65"), ("positive four", 1, "100"),
+            ("positive five", 1, "66-99"), ("negative five", 0, "100")]
+    splits = _stratified_split(rows, seed=4)
+    membership = {i: name for name, ids in zip(("train", "dev", "test"), splits) for i in ids}
+    assert membership[0] == membership[1]
+
+
+def test_stratified_split_rejects_conflicting_duplicate_text_labels():
+    rows = [("Duplicate text", 0, 0.9), (" duplicate TEXT ", 1, 0.8),
+            ("third", 0, 0.7), ("fourth", 1, 0.6)]
+    import pytest
+    with pytest.raises(ValueError, match="Conflicting sentiment labels"):
+        _stratified_split(rows, seed=1)

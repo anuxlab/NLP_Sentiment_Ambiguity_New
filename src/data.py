@@ -185,17 +185,57 @@ def _fetch_text(url, dst):
     return path.read_text(encoding="latin-1" if dst.endswith(".txt") else "utf-8")
 
 
-def _stratified_split(rows, seed, fracs=(0.7, 0.1, 0.2)):
-    """rows: list of tuples whose LAST element is the binary label. Stratified, deterministic split."""
-    rng = np.random.RandomState(seed)
+def _stratified_split(rows, seed, fracs=(0.7, 0.1, 0.2), label_index=1, text_index=0):
+    """Deterministic label-stratified split that keeps duplicate texts in one split.
+
+    ``rows`` may carry metadata after the label (e.g. finance agreement tier or
+    airline worker confidence), so the sentiment label is selected explicitly
+    instead of inferred from the last tuple field. Normalized duplicate texts
+    are assigned as a group to prevent train/dev/test text leakage. If identical
+    normalized text has conflicting labels, fail loudly rather than silently
+    leaking or choosing one label.
+    """
+    if not rows:
+        return [], [], []
+    if not (0 <= label_index < len(rows[0]) and 0 <= text_index < len(rows[0])):
+        raise ValueError("label_index/text_index is outside the row schema")
+    import re
+    def norm_text(value):
+        return re.sub(r"\s+", " ", str(value).strip().lower())
+
+    grouped = {}
+    for i, row in enumerate(rows):
+        key = norm_text(row[text_index])
+        label = row[label_index]
+        if not key:
+            raise ValueError(f"Empty text at row {i}")
+        if key not in grouped:
+            grouped[key] = {"label": label, "indices": [i]}
+        else:
+            if grouped[key]["label"] != label:
+                raise ValueError(f"Conflicting sentiment labels for duplicate normalized text: {key[:80]!r}")
+            grouped[key]["indices"].append(i)
+
     by_label = {}
-    for i, r in enumerate(rows):
-        by_label.setdefault(r[-1], []).append(i)
+    for key, item in grouped.items():
+        by_label.setdefault(item["label"], []).append((key, item["indices"]))
+    rng = np.random.RandomState(seed)
     tr_idx, dev_idx, te_idx = [], [], []
-    for lab, idx in by_label.items():
-        idx = np.array(idx); rng.shuffle(idx)
-        n = len(idx); n_tr = int(round(n * fracs[0])); n_dev = int(round(n * fracs[1]))
-        tr_idx += list(idx[:n_tr]); dev_idx += list(idx[n_tr:n_tr + n_dev]); te_idx += list(idx[n_tr + n_dev:])
+    for lab, groups in by_label.items():
+        order = rng.permutation(len(groups))
+        shuffled = [groups[int(j)] for j in order]
+        n = len(shuffled)
+        n_tr = int(round(n * fracs[0]))
+        n_dev = int(round(n * fracs[1]))
+        # Keep at least one group in the test partition for each label when possible.
+        if n >= 3:
+            n_tr = min(n_tr, n - 2)
+            n_dev = min(n_dev, n - n_tr - 1)
+        for split, subset in ((tr_idx, shuffled[:n_tr]),
+                              (dev_idx, shuffled[n_tr:n_tr + n_dev]),
+                              (te_idx, shuffled[n_tr + n_dev:])):
+            for _, indices in subset:
+                split.extend(indices)
     rng.shuffle(tr_idx); rng.shuffle(dev_idx); rng.shuffle(te_idx)
     return tr_idx, dev_idx, te_idx
 
