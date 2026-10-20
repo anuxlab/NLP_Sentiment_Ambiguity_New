@@ -197,6 +197,17 @@ def main(output, seed=42):
                 report["status"] = "REVIEW"
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Generate the detailed airline source audit inside main(),
+    # where the integer seed and output path are available.
+    airline_splits, _ = load_airline(seed=seed)
+    raw_audit = audit_airline_raw_source(airline_splits, seed=seed)
+
+    raw_output = output.parent / "airline_raw_source_audit.json"
+    raw_output.write_text(
+        json.dumps(raw_audit, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({"status": report["status"], "output": str(output),
                       "counts": {d: {s: x["n_rows"] for s, x in v["splits"].items()}
