@@ -1,0 +1,74 @@
+{
+  "dataset": "sentimp_en",
+  "raw_records": 480,
+  "labels": [
+    "negative",
+    "neutral",
+    "positive"
+  ],
+  "split_fractions": {
+    "train": 0.7,
+    "dev": 0.1,
+    "test": 0.2
+  },
+  "deduplication": {
+    "input_rows": 480,
+    "unique_normalized_texts": 480,
+    "duplicate_rows_removed": 0,
+    "duplicate_groups": 0,
+    "duplicate_groups_with_different_vote_counts": 0,
+    "conflicting_duplicate_examples": [],
+    "policy": "keep first source occurrence; do not merge duplicate records or treat them as additional annotator votes"
+  },
+  "splits": {
+    "train": {
+      "rows": 337,
+      "class_or_tie_counts": {
+        "2": 172,
+        "0": 90,
+        "1": 69,
+        "tie": 6
+      },
+      "rows_with_tied_majority": 6,
+      "vote_count_distribution": {
+        "3": 337
+      },
+      "mean_vote_entropy_bits": 0.27891095471020766
+    },
+    "dev": {
+      "rows": 48,
+      "class_or_tie_counts": {
+        "0": 13,
+        "2": 24,
+        "1": 10,
+        "tie": 1
+      },
+      "rows_with_tied_majority": 1,
+      "vote_count_distribution": {
+        "3": 48
+      },
+      "mean_vote_entropy_bits": 0.3391186634498539
+    },
+    "test": {
+      "rows": 95,
+      "class_or_tie_counts": {
+        "1": 19,
+        "2": 49,
+        "0": 25,
+        "tie": 2
+      },
+      "rows_with_tied_majority": 2,
+      "vote_count_distribution": {
+        "3": 95
+      },
+      "mean_vote_entropy_bits": 0.37168714940367836
+    }
+  },
+  "normalized_text_overlap_across_splits": {
+    "train__dev": 0,
+    "train__test": 0,
+    "dev__test": 0
+  },
+  "all_splits_disjoint": true,
+  "status": "PASS"
+}
