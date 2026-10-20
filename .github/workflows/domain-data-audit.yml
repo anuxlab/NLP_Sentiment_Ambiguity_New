@@ -63,7 +63,7 @@ jobs:
           if report.get("status") == "FAIL":
               sys.exit("FAIL: normalized text appears across splits; inspect audit artifact")
           if report.get("status") == "REVIEW":
-              print("REVIEW: conflicting duplicate labels were grouped to avoid leakage; inspect examples before training")
+              print("REVIEW: inspect full raw-source duplicate groups in airline_raw_source_audit before training")
           elif report.get("status") != "PASS":
               sys.exit("Unexpected audit status")
           PYCODE

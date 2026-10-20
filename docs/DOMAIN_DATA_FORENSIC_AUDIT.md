@@ -38,3 +38,8 @@ The environment could not resolve GitHub hostnames while attempting to download 
 3. Record exact split counts and update full-budget constants from the actual corrected train split.
 4. Re-run all finance/airline experiments with the corrected split and new run IDs; do not overwrite or merge legacy predictions.
 5. Report Macro-F1, accuracy, and calibration only where supported by saved probabilities; reserve JS divergence against human vote distributions for DynaSent unless new distributional annotations are obtained.
+
+
+## Raw airline duplicate forensics (added)
+
+The audit now separately downloads the original airline CSV and writes `airline_raw_source_audit` into the JSON report. It records every duplicate normalized-text group, full original text, original data-row index, sentiment label, confidence, airline, tweet ID, and negative-reason field when present. It reports conflicting-label groups without treating duplicate records as independent annotator votes or changing the training labels. This source-level output is needed before a human decides whether conflicting groups should be excluded from the primary benchmark or retained only in sensitivity analysis.

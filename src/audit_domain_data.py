@@ -5,8 +5,10 @@ and writes a machine-readable report. This is a data-integrity audit, not a mode
 experiment. Run from src/: python audit_domain_data.py --output ../results/domain_data_audit.json
 """
 import argparse
+import csv
 import json
 import re
+import urllib.request
 from collections import Counter
 from pathlib import Path
 
