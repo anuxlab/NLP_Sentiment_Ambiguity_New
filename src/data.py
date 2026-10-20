@@ -210,15 +210,24 @@ def _stratified_split(rows, seed, fracs=(0.7, 0.1, 0.2), label_index=1, text_ind
         if not key:
             raise ValueError(f"Empty text at row {i}")
         if key not in grouped:
-            grouped[key] = {"label": label, "indices": [i]}
-        else:
-            if grouped[key]["label"] != label:
-                raise ValueError(f"Conflicting sentiment labels for duplicate normalized text: {key[:80]!r}")
-            grouped[key]["indices"].append(i)
+            grouped[key] = {"labels": [], "indices": []}
+        grouped[key]["labels"].append(label)
+        grouped[key]["indices"].append(i)
 
+    # Some public mirrors contain the same normalized text with different hard
+    # labels. Keep the entire text group in one split, but do not silently
+    # overwrite any original row labels. For stratification only, use the
+    # group's majority label (ties resolved by sorted label order). The audit
+    # reports such conflicts so researchers can decide whether to exclude them.
     by_label = {}
     for key, item in grouped.items():
-        by_label.setdefault(item["label"], []).append((key, item["indices"]))
+        counts = {}
+        for label in item["labels"]:
+            counts[label] = counts.get(label, 0) + 1
+        max_count = max(counts.values())
+        strat_label = sorted(label for label, count in counts.items() if count == max_count)[0]
+        item["stratification_label"] = strat_label
+        by_label.setdefault(strat_label, []).append((key, item["indices"]))
     rng = np.random.RandomState(seed)
     tr_idx, dev_idx, te_idx = [], [], []
     for lab, groups in by_label.items():

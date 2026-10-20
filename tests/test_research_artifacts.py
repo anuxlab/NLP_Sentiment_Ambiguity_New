@@ -173,9 +173,11 @@ def test_stratified_split_keeps_normalized_duplicate_text_in_one_partition():
     assert membership[0] == membership[1]
 
 
-def test_stratified_split_rejects_conflicting_duplicate_text_labels():
+def test_stratified_split_keeps_conflicting_duplicate_text_labels_together():
     rows = [("Duplicate text", 0, 0.9), (" duplicate TEXT ", 1, 0.8),
-            ("third", 0, 0.7), ("fourth", 1, 0.6)]
-    import pytest
-    with pytest.raises(ValueError, match="Conflicting sentiment labels"):
-        _stratified_split(rows, seed=1)
+            ("third", 0, 0.7), ("fourth", 1, 0.6),
+            ("fifth positive", 1, 0.9), ("sixth negative", 0, 0.9)]
+    splits = _stratified_split(rows, seed=1)
+    membership = {i: name for name, ids in zip(("train", "dev", "test"), splits) for i in ids}
+    assert membership[0] == membership[1]
+    assert sorted(membership) == list(range(len(rows)))

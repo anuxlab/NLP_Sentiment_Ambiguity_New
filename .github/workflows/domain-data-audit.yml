@@ -1,0 +1,78 @@
+name: Domain Dataset Forensic Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Deterministic split seed"
+        required: true
+        default: "42"
+        type: string
+  push:
+    paths:
+      - "src/data.py"
+      - "src/audit_domain_data.py"
+      - "tests/test_domain_data_audit.py"
+      - ".github/workflows/domain-data-audit.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domain-data-audit-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install audit dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest
+
+      - name: Run focused data-splitting tests
+        run: pytest -q tests/test_domain_data_audit.py
+
+      - name: Download and audit public datasets
+        env:
+          AUDIT_SEED: ${{ inputs.seed || '42' }}
+        run: |
+          python src/audit_domain_data.py \
+            --seed "$AUDIT_SEED" \
+            --output results/domain_data_audit.json
+
+      - name: Enforce split integrity and surface review findings
+        if: success()
+        run: |
+          python - <<'PYCODE'
+          import json, sys
+          report = json.load(open("results/domain_data_audit.json", encoding="utf-8"))
+          print("Audit status:", report.get("status"))
+          if report.get("status") == "FAIL":
+              sys.exit("FAIL: normalized text appears across splits; inspect audit artifact")
+          if report.get("status") == "REVIEW":
+              print("REVIEW: conflicting duplicate labels were grouped to avoid leakage; inspect examples before training")
+          elif report.get("status") != "PASS":
+              sys.exit("Unexpected audit status")
+          PYCODE
+
+      - name: Upload forensic audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-data-audit-${{ github.run_id }}
+          path: results/domain_data_audit.json
+          if-no-files-found: error
+          retention-days: 90

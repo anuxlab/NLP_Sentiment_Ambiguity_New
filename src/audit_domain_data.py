@@ -28,6 +28,10 @@ def split_report(splits):
         counts = Counter(int(x) for x in labels.tolist())
         normalized = [norm(t) for t in texts]
         split_text_sets[name] = set(normalized)
+        labels_by_text = {}
+        for text, label in zip(normalized, labels.tolist()):
+            labels_by_text.setdefault(text, set()).add(int(label))
+        conflicting_groups = {text: sorted(vals) for text, vals in labels_by_text.items() if len(vals) > 1}
         out[name] = {
             "n_rows": len(texts),
             "class_counts": {str(k): int(v) for k, v in sorted(counts.items())},
@@ -35,6 +39,11 @@ def split_report(splits):
             "empty_text_rows": int(sum(not x for x in normalized)),
             "duplicate_normalized_text_rows": int(len(normalized) - len(set(normalized))),
             "unique_normalized_texts": int(len(set(normalized))),
+            "conflicting_label_duplicate_groups": int(len(conflicting_groups)),
+            "conflicting_label_examples": [
+                {"normalized_text_prefix": text[:120], "labels": vals}
+                for text, vals in list(sorted(conflicting_groups.items()))[:25]
+            ],
         }
     overlap = {}
     names = list(splits)
@@ -44,8 +53,8 @@ def split_report(splits):
     return out, overlap
 
 
-def audit_domain(name, loader):
-    splits, metadata = loader(seed=42)
+def audit_domain(name, loader, seed=42):
+    splits, metadata = loader(seed=seed)
     split_stats, overlaps = split_report(splits)
     test_meta = np.asarray(metadata)
     if name == "finance":
@@ -67,7 +76,7 @@ def audit_domain(name, loader):
         }
     return {
         "domain": name,
-        "seed": 42,
+        "seed": seed,
         "task": "binary sentiment; neutral rows dropped by current loader",
         "split_fractions_requested": {"train": .7, "dev": .1, "test": .2},
         "splits": split_stats,
@@ -77,7 +86,7 @@ def audit_domain(name, loader):
     }
 
 
-def main(output):
+def main(output, seed=42):
     report = {
         "status": "PASS",
         "audit_scope": "live public-source download plus current production loader outputs",
@@ -85,10 +94,13 @@ def main(output):
         "domains": {},
     }
     for name, loader in (("finance", load_finance), ("airline", load_airline)):
-        result = audit_domain(name, loader)
+        result = audit_domain(name, loader, seed=seed)
         report["domains"][name] = result
         if not result["all_splits_disjoint_by_normalized_text"]:
             report["status"] = "FAIL"
+        elif any(stats["conflicting_label_duplicate_groups"] for stats in result["splits"].values()):
+            if report["status"] != "FAIL":
+                report["status"] = "REVIEW"
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -101,5 +113,6 @@ def main(output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default=str(RES / "domain_data_audit.json"))
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
-    main(args.output)
+    main(args.output, seed=args.seed)
