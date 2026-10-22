@@ -1,0 +1,45 @@
+DynaSent controlled-budget robustness audit
+================================================
+
+Records: 400
+Rounds: ['round1', 'round2']
+Budgets: [np.int64(25), np.int64(50), np.int64(100), np.int64(200), np.int64(300)]
+Seeds: [np.int64(0), np.int64(1), np.int64(2), np.int64(3), np.int64(4), np.int64(5), np.int64(6), np.int64(7), np.int64(8), np.int64(9)]
+
+Paired JS tests with Holm correction
+------------------------------------
+ round  budget                         treatment  n_paired_seeds  mean_delta  bootstrap_ci_95_low  bootstrap_ci_95_high  wilcoxon_p  wilcoxon_holm_p_all_30
+round1      25                human_soft_targets              10   -0.000704            -0.002815              0.001370    0.695312                1.000000
+round1      25 human_soft_targets_null_augmented              10   -0.002480            -0.006360              0.001174    0.431641                1.000000
+round1      25                   label_smoothing              10    0.000030            -0.000052              0.000110    0.492188                1.000000
+round1      50                human_soft_targets              10   -0.001404            -0.004662              0.001678    0.556641                1.000000
+round1      50 human_soft_targets_null_augmented              10   -0.001157            -0.005096              0.002997    0.695312                1.000000
+round1      50                   label_smoothing              10   -0.000072            -0.000250              0.000103    0.625000                1.000000
+round1     100                human_soft_targets              10   -0.004462            -0.007826             -0.001411    0.037109                0.742188
+round1     100 human_soft_targets_null_augmented              10    0.002685            -0.004101              0.008544    0.275391                1.000000
+round1     100                   label_smoothing              10   -0.000486            -0.000987              0.000014    0.160156                1.000000
+round1     200                human_soft_targets              10   -0.004481            -0.006925             -0.002111    0.009766                0.224609
+round1     200 human_soft_targets_null_augmented              10    0.008580             0.003665              0.012898    0.009766                0.224609
+round1     200                   label_smoothing              10   -0.000613            -0.001198             -0.000033    0.130859                1.000000
+round1     300                human_soft_targets              10   -0.003924            -0.006641             -0.001198    0.027344                0.574219
+round1     300 human_soft_targets_null_augmented              10    0.012341             0.007018              0.016367    0.003906                0.109375
+round1     300                   label_smoothing              10   -0.000016            -0.000585              0.000519    0.921875                1.000000
+round2      25                human_soft_targets              10   -0.003220            -0.007113              0.000460    0.193359                1.000000
+round2      25 human_soft_targets_null_augmented              10   -0.003675            -0.014449              0.006397    0.625000                1.000000
+round2      25                   label_smoothing              10   -0.000043            -0.000230              0.000141    0.769531                1.000000
+round2      50                human_soft_targets              10   -0.003900            -0.008327              0.000473    0.193359                1.000000
+round2      50 human_soft_targets_null_augmented              10   -0.002278            -0.019343              0.011778    0.921875                1.000000
+round2      50                   label_smoothing              10   -0.000325            -0.000920              0.000114    0.769531                1.000000
+round2     100                human_soft_targets              10   -0.009741            -0.014636             -0.005190    0.005859                0.146484
+round2     100 human_soft_targets_null_augmented              10   -0.009830            -0.022979              0.002034    0.275391                1.000000
+round2     100                   label_smoothing              10   -0.001587            -0.002560             -0.000786    0.003906                0.109375
+round2     200                human_soft_targets              10   -0.008799            -0.011164             -0.006040    0.003906                0.109375
+round2     200 human_soft_targets_null_augmented              10   -0.003882            -0.012370              0.003690    0.625000                1.000000
+round2     200                   label_smoothing              10   -0.001702            -0.002480             -0.000918    0.005859                0.146484
+round2     300                human_soft_targets              10   -0.009448            -0.011949             -0.006878    0.001953                0.058594
+round2     300 human_soft_targets_null_augmented              10   -0.002456            -0.010471              0.004885    0.845703                1.000000
+round2     300                   label_smoothing              10   -0.001935            -0.002615             -0.001301    0.001953                0.058594
+
+Limitations
+------------
+These analyses use ten trained seeds and the existing fixed evaluation sets. Bootstrap intervals resample seeds, not test examples. The exploratory budget-sweep correction does not replace the frozen analysis plan or a separately conducted confirmatory analysis. Trend estimates are descriptive.

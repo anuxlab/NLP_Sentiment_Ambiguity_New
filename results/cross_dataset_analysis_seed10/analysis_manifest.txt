@@ -1,0 +1,28 @@
+{
+  "analysis": "cross-dataset controlled sentiment comparison",
+  "inputs": [
+    "results/dynasent_controlled",
+    "results/sentimp_en_controlled_seed10/metrics.jsonl"
+  ],
+  "datasets": [
+    "DynaSent Round 1",
+    "DynaSent Round 2",
+    "SentiMP-En"
+  ],
+  "conditions": [
+    "majority_ce",
+    "human_soft_targets",
+    "label_smoothing"
+  ],
+  "metrics": [
+    "js_divergence",
+    "soft_brier",
+    "accuracy",
+    "macro_f1"
+  ],
+  "bootstrap_replicates": 20000,
+  "bootstrap_unit": "seed",
+  "bootstrap_seed": 20261020,
+  "raw_metrics_modified": false,
+  "interpretation": "Exploratory cross-dataset comparison. Compare paired effects within each dataset; do not directly rank raw JS values across datasets with different label spaces and protocols."
+}
