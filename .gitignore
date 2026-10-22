@@ -6,3 +6,11 @@ __pycache__/
 
 # Large experiment prediction outputs
 results/dynasent_controlled/**/predictions.jsonl
+
+# Superseded or exploratory analysis outputs
+/results/cross_dataset_analysis/
+/results/dynasent_controlled_smoke/
+
+# Local configuration backups
+/results/dynasent_multiseed/round1/config_and_audit.json.bak
+/results/dynasent_multiseed/round2/config_and_audit.json.bak
