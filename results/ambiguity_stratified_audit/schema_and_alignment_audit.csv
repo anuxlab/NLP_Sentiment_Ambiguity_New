@@ -1,0 +1,4 @@
+dataset,prediction_rows,unique_example_ids,examples_with_conflicting_targets,examples_with_inconsistent_entropy,normalized_text_collisions,invalid_paired_groups,budgets,seeds
+DynaSent Round 1,360000,3600,0,0,0,0,"25,50,100,200,300","0,1,2,3,4,5,6,7,8,9"
+DynaSent Round 2,72000,720,0,0,0,0,"25,50,100,200,300","0,1,2,3,4,5,6,7,8,9"
+SentiMP-En,9500,95,0,0,0,0,"25,50,100,200,300","0,1,2,3,4,5,6,7,8,9"

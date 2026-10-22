@@ -1,0 +1,4 @@
+dataset,n_unique_examples,entropy_cutoff_q1,entropy_cutoff_q2,low_unique_examples,medium_unique_examples,high_unique_examples,strata_method
+DynaSent Round 1,3600,-0.0,0.36096404744368116,1235,2365,0,empirical_entropy_quantiles_with_ties
+DynaSent Round 2,720,-0.0,0.36096404744368116,309,411,0,empirical_entropy_quantiles_with_ties
+SentiMP-En,95,0.0,0.5793801642856949,58,35,2,empirical_entropy_quantiles_with_ties
