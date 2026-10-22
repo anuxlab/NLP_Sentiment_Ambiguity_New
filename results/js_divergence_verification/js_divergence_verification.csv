@@ -1,0 +1,4 @@
+dataset,rows_checked,missing_saved_js,malformed_rows,tolerance,max_absolute_error,mean_absolute_error,median_absolute_error,rows_over_tolerance,status
+DynaSent Round 1,720000,0,0,1e-06,1.9474133172714403e-07,3.251844720923662e-08,2.783666974703891e-08,0,PASS
+DynaSent Round 2,144000,0,0,1e-06,1.8193612139061344e-07,3.28720623527112e-08,2.810098156946772e-08,0,PASS
+SentiMP-En,19000,0,0,1e-06,6.65967863078265e-08,2.104747425503796e-09,3.781561175308923e-11,0,PASS
