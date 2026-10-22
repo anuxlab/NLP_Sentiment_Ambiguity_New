@@ -82,10 +82,16 @@
     "conditions": [
       "majority_ce",
       "human_soft_targets",
-      "label_smoothing"
+      "label_smoothing",
+      "human_soft_targets_null_augmented"
     ],
     "matching_policy": "all three matched conditions use identical examples sampled from non-null gold-label training pool",
     "null_soft_fraction_requested": 0.5,
-    "null_augmented_condition_note": "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines."
+    "null_augmented_condition_note": "This additional condition uses the same total budget but deliberately includes null-majority examples; it is not a matched-data comparison against hard-label baselines.",
+    "effective_learning_rate": {
+      "parameter": "lr",
+      "value": 0.01,
+      "optimizer": "torch.optim.AdamW"
+    }
   }
 }
