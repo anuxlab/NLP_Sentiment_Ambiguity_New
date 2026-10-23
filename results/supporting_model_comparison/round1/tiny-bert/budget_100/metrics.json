@@ -1,0 +1,1037 @@
+[
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 0,
+    "condition": "majority_ce",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.1200718879699707,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.39892375469207764,
+    "js_divergence_median_bits": 0.39340025186538696,
+    "soft_brier_score": 0.5279796123504639,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3333333333333333,
+    "macro_f1": 0.1253638683339356,
+    "ece_10bin": 0.11317495323717594,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.3278528451919556,
+    "last_batch_loss": 1.3247768878936768,
+    "mean_batch_loss": 1.2376381322741508,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.350435447692871,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.1537778377532959
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3203367280960083,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.0925130844116211
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.2922371625900269,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.08419108390808105
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.259398341178894,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.08349204063415527
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.2478168678283692,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.08112001419067383
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.2238637399673462,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.11371016502380371
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2219970369338988,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.11017704010009766
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.19799245595932,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.09839200973510742
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.1689550971984863,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.1076650619506836
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.166649751663208,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.1917738914489746
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0007945974357426167,
+    "training_time_s": 1.1200718879699707,
+    "evaluation_time_s": 1.5889177322387695,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 0,
+    "condition": "human_soft_targets",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.7142488956451416,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.39458250999450684,
+    "js_divergence_median_bits": 0.3920769691467285,
+    "soft_brier_score": 0.5145452618598938,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3338888888888889,
+    "macro_f1": 0.13149524087024086,
+    "ece_10bin": 0.073192561533716,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.3572628498077393,
+    "last_batch_loss": 1.198957920074463,
+    "mean_batch_loss": 1.2866232171654701,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.38234290599823,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.15149497985839844
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3488188982009888,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.15411710739135742
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3338649368286133,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.19678688049316406
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.3063428497314453,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.35428881645202637
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.2996260452270507,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.18807315826416016
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.2763611030578614,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.13731980323791504
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2734783792495727,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.11319994926452637
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.2589386463165284,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.15433907508850098
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.2375570273399352,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.12916183471679688
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.2397978401184082,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.1316089630126953
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.00079340860247612,
+    "training_time_s": 1.7142488956451416,
+    "evaluation_time_s": 1.5296790599822998,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 0,
+    "condition": "label_smoothing",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.0075139999389648,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.3980792164802551,
+    "js_divergence_median_bits": 0.39256876707077026,
+    "soft_brier_score": 0.5244854092597961,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3333333333333333,
+    "macro_f1": 0.1253638683339356,
+    "ece_10bin": 0.10362263076835211,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.3368064165115356,
+    "last_batch_loss": 1.3360676765441895,
+    "mean_batch_loss": 1.2599886998534202,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.3574979209899902,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.11212491989135742
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3307930946350097,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.09274005889892578
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3064472150802613,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.08156013488769531
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.2779402923583985,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.10276293754577637
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.2682440948486329,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.08928298950195312
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.2475135135650635,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.09104418754577637
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2470120477676392,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.09177875518798828
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.2267432188987732,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.09985089302062988
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.201688928604126,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.10416007041931152
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.2005486488342285,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.13947200775146484
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0007941918447613716,
+    "training_time_s": 1.0075139999389648,
+    "evaluation_time_s": 1.9042749404907227,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 1,
+    "condition": "majority_ce",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.7404131889343262,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.3990458846092224,
+    "js_divergence_median_bits": 0.38181912899017334,
+    "soft_brier_score": 0.5427125096321106,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3327777777777778,
+    "macro_f1": 0.12595575416969507,
+    "ece_10bin": 0.17740460229416688,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.3231172561645508,
+    "last_batch_loss": 1.3573200702667236,
+    "mean_batch_loss": 1.2106481805443763,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.3550318908691406,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.12381291389465332
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3061143064498901,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.11530303955078125
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.283656268119812,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.11219501495361328
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.2492959785461426,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.19740986824035645
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.2347552967071533,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.2901639938354492
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.216722149848938,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.2015080451965332
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.17487952709198,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.17533493041992188
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.166004207134247,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.207794189453125
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.1500014925003053,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.155991792678833
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.1433377933502198,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.15570402145385742
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0008151354268193245,
+    "training_time_s": 1.7404131889343262,
+    "evaluation_time_s": 2.166900396347046,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 1,
+    "condition": "human_soft_targets",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.5729870796203613,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.39198723435401917,
+    "js_divergence_median_bits": 0.36743777990341187,
+    "soft_brier_score": 0.5169164538383484,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3338888888888889,
+    "macro_f1": 0.1277334663481397,
+    "ece_10bin": 0.12311065847675003,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.362605333328247,
+    "last_batch_loss": 1.4356756210327148,
+    "mean_batch_loss": 1.296381850540638,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.400330629348755,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.11606025695800781
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3601091146469115,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.11843371391296387
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3474669408798219,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.09417915344238281
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.3270287799835205,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.10617899894714355
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.3095179605484009,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.2442331314086914
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.2920844793319701,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.19736599922180176
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2589852285385132,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.1391158103942871
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.2566834616661071,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.15213608741760254
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.2396615648269653,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.21748924255371094
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.2391062927246095,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.18300318717956543
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0008203834295272827,
+    "training_time_s": 1.5729870796203613,
+    "evaluation_time_s": 1.673943042755127,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 1,
+    "condition": "label_smoothing",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.3556361198425293,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.39743730425834656,
+    "js_divergence_median_bits": 0.3777874708175659,
+    "soft_brier_score": 0.53602534532547,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3327777777777778,
+    "macro_f1": 0.12595678464284712,
+    "ece_10bin": 0.16403579618367886,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.335878849029541,
+    "last_batch_loss": 1.3718914985656738,
+    "mean_batch_loss": 1.2389703452587129,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.3645706701278686,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.1112208366394043
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.321523780822754,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.0883646011352539
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3019325971603393,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.08609700202941895
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.2716881084442138,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.09893393516540527
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.2593401050567627,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.10112595558166504
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.2443292236328125,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.12504982948303223
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2079600667953492,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.18021702766418457
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.2004461526870727,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.21661114692687988
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.1869879245758057,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.2304399013519287
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.1822873497009276,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.11421084403991699
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0008112154901027679,
+    "training_time_s": 1.3556361198425293,
+    "evaluation_time_s": 1.9397010803222656,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 2,
+    "condition": "majority_ce",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 1.2013871669769287,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.397885262966156,
+    "js_divergence_median_bits": 0.37634000182151794,
+    "soft_brier_score": 0.5078520178794861,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3375,
+    "macro_f1": 0.14343874761922204,
+    "ece_10bin": 0.03362451834811106,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.4231536388397217,
+    "last_batch_loss": 1.5119819641113281,
+    "mean_batch_loss": 1.3409136950969696,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.4282838678359986,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.18320393562316895
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.3937667989730835,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.10423398017883301
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3775959587097169,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.10530900955200195
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.3489228439331056,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.11369109153747559
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.3318321132659912,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.10802888870239258
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.307434597015381,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.11544013023376465
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.2881377410888672,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.12218499183654785
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.2896953582763673,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.11406588554382324
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.2580624628067016,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.11377573013305664
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.259934196472168,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.11845088005065918
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0008082292624749243,
+    "training_time_s": 1.2013871669769287,
+    "evaluation_time_s": 1.2525432109832764,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 2,
+    "condition": "human_soft_targets",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 0.8793528079986572,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.3971129059791565,
+    "js_divergence_median_bits": 0.3764756917953491,
+    "soft_brier_score": 0.5057755708694458,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.3363888888888889,
+    "macro_f1": 0.14514064471403218,
+    "ece_10bin": 0.030148213687870237,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.4276443719863892,
+    "last_batch_loss": 1.4743492603302002,
+    "mean_batch_loss": 1.3560529410839082,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.431600069999695,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.08479595184326172
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.4017803859710694,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.08490109443664551
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3861975622177125,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.08392572402954102
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.367179012298584,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.09223794937133789
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.3509833240509033,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.08201217651367188
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.337580361366272,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.09028410911560059
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.3241223287582398,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.08661079406738281
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.3182345485687257,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.0862126350402832
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.3008052968978883,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.08058595657348633
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.3026513767242431,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.10532593727111816
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.0008138476987369359,
+    "training_time_s": 0.8793528079986572,
+    "evaluation_time_s": 1.1243460178375244,
+    "trainable_parameter_tensors": 39
+  },
+  {
+    "round": "round1",
+    "backend": "tiny-bert",
+    "seed": 2,
+    "condition": "label_smoothing",
+    "budget": 100,
+    "n_null_gold_train": 0,
+    "n_non_null_gold_train": 100,
+    "epochs": 10,
+    "train_time_s": 0.8972311019897461,
+    "n_test": 3600,
+    "js_divergence_mean_bits": 0.3983139097690582,
+    "js_divergence_median_bits": 0.37672269344329834,
+    "soft_brier_score": 0.5080164074897766,
+    "human_distribution_entropy_mean_bits": 0.4742666184902191,
+    "n_with_majority_gold": 3600,
+    "accuracy": 0.33805555555555555,
+    "macro_f1": 0.145016247373845,
+    "ece_10bin": 0.03005634004871052,
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "device": "cpu",
+    "max_length": 64,
+    "learning_rate": 2e-05,
+    "optimizer_steps": 40,
+    "first_batch_loss": 1.421537160873413,
+    "last_batch_loss": 1.5045117139816284,
+    "mean_batch_loss": 1.3477871984243393,
+    "epoch_loss_history": [
+      {
+        "epoch": 1,
+        "mean_loss": 1.4260864448547363,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 4,
+        "epoch_time_s": 0.0940549373626709
+      },
+      {
+        "epoch": 2,
+        "mean_loss": 1.39487895488739,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 8,
+        "epoch_time_s": 0.08862590789794922
+      },
+      {
+        "epoch": 3,
+        "mean_loss": 1.3799351263046264,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 12,
+        "epoch_time_s": 0.09951305389404297
+      },
+      {
+        "epoch": 4,
+        "mean_loss": 1.3543838310241698,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 16,
+        "epoch_time_s": 0.09914898872375488
+      },
+      {
+        "epoch": 5,
+        "mean_loss": 1.339084849357605,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 20,
+        "epoch_time_s": 0.08546996116638184
+      },
+      {
+        "epoch": 6,
+        "mean_loss": 1.3175703001022339,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 24,
+        "epoch_time_s": 0.08959412574768066
+      },
+      {
+        "epoch": 7,
+        "mean_loss": 1.3008566093444824,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 28,
+        "epoch_time_s": 0.0893089771270752
+      },
+      {
+        "epoch": 8,
+        "mean_loss": 1.3024978637695312,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 32,
+        "epoch_time_s": 0.08529496192932129
+      },
+      {
+        "epoch": 9,
+        "mean_loss": 1.2751553344726563,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 36,
+        "epoch_time_s": 0.08072185516357422
+      },
+      {
+        "epoch": 10,
+        "mean_loss": 1.27744731426239,
+        "batches": 4,
+        "examples": 100,
+        "optimizer_steps_cumulative": 40,
+        "epoch_time_s": 0.08295488357543945
+      }
+    ],
+    "nonfinite_loss_batches": 0,
+    "max_parameter_change": 0.000806074240244925,
+    "training_time_s": 0.8972311019897461,
+    "evaluation_time_s": 0.9870131015777588,
+    "trainable_parameter_tensors": 39
+  }
+]

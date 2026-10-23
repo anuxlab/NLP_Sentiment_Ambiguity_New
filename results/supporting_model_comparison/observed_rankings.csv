@@ -1,0 +1,21 @@
+round,budget,metric,best_backend_observed,tfidf_mean,tiny_bert_mean,interpretation
+round1,25,macro_f1,tfidf,0.19902168054118172,0.15023339507194092,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,25,js_divergence_mean_bits,tfidf,0.4147336383660634,0.4233716626962026,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,50,macro_f1,tfidf,0.19321840982680616,0.15556864800222625,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,50,js_divergence_mean_bits,tfidf,0.40150486429532367,0.4111591378847758,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,100,macro_f1,tfidf,0.17281714875816476,0.13158612337428421,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,100,js_divergence_mean_bits,tfidf,0.38930285970369977,0.39861830075581867,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,200,macro_f1,tfidf,0.19118731532682265,0.12633205735401076,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,200,js_divergence_mean_bits,tfidf,0.3765040437380473,0.381952424844106,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,300,macro_f1,tfidf,0.21387690701331963,0.12620682908916406,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round1,300,js_divergence_mean_bits,tfidf,0.37064358592033386,0.3773082494735718,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,25,macro_f1,tfidf,0.20343943715192436,0.17260320357910083,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,25,js_divergence_mean_bits,tfidf,0.4329829116662343,0.4420066674550374,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,50,macro_f1,tiny-bert,0.1845219920016866,0.18537835110002435,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,50,js_divergence_mean_bits,tfidf,0.42332836985588074,0.43670884768168133,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,100,macro_f1,tiny-bert,0.1719874389396808,0.1846568819295242,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,100,js_divergence_mean_bits,tfidf,0.4351331392923991,0.43721803029378253,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,200,macro_f1,tfidf,0.18485419825852714,0.14829375818922763,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,200,js_divergence_mean_bits,tfidf,0.4246838092803955,0.4317561487356822,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,300,macro_f1,tfidf,0.2005926749803313,0.1449879433275788,observed descriptive ranking; seeds are few and comparisons remain exploratory
+round2,300,js_divergence_mean_bits,tfidf,0.4234529534975688,0.4333297808965047,observed descriptive ranking; seeds are few and comparisons remain exploratory

@@ -1,0 +1,34 @@
+[
+  {
+    "round": "round1",
+    "backend": "vader_lexicon",
+    "condition": "zero_shot_rule_based",
+    "budget": 0,
+    "seed": 0,
+    "n_test": 3600,
+    "train_time_s": 0.0,
+    "inference_time_s": 0.7131492081098258,
+    "js_divergence_mean_bits": 0.41919868518080977,
+    "accuracy": 0.5558333333333333,
+    "macro_f1": 0.4107571946781754,
+    "n_with_majority_gold": 3600,
+    "mapping": "mixed if VADER pos>=0.15 and neg>=0.15; else compound >= threshold positive, <= -threshold negative, otherwise neutral",
+    "compound_threshold": 0.05
+  },
+  {
+    "round": "round2",
+    "backend": "vader_lexicon",
+    "condition": "zero_shot_rule_based",
+    "budget": 0,
+    "seed": 0,
+    "n_test": 720,
+    "train_time_s": 0.0,
+    "inference_time_s": 0.1338562919991091,
+    "js_divergence_mean_bits": 0.4568893727742963,
+    "accuracy": 0.5083333333333333,
+    "macro_f1": 0.385994842924945,
+    "n_with_majority_gold": 720,
+    "mapping": "mixed if VADER pos>=0.15 and neg>=0.15; else compound >= threshold positive, <= -threshold negative, otherwise neutral",
+    "compound_threshold": 0.05
+  }
+]

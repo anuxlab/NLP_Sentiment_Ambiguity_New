@@ -1,0 +1,92 @@
+{
+  "args": {
+    "data": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/data/dynasent-main.zip",
+    "round": "round2",
+    "backend": "tiny-bert",
+    "checkpoint": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/models/mlm_final",
+    "budget": 200,
+    "eval_size": 0,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "epochs": 10,
+    "batch_size": 32,
+    "tiny_bert_lr": 2e-05,
+    "weight_decay": 0.001,
+    "label_smoothing": 0.1,
+    "max_features": 12000,
+    "max_length": 64,
+    "device": "cpu",
+    "include_null_soft_only": false,
+    "null_soft_fraction": 0.5,
+    "out_dir": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/results/supporting_model_comparison/round2/tiny-bert/budget_200"
+  },
+  "audit": {
+    "round": "round2",
+    "data": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/data/dynasent-main.zip",
+    "backend": "tiny-bert",
+    "labels": [
+      "negative",
+      "neutral",
+      "positive",
+      "mixed"
+    ],
+    "loader_audit": {
+      "round": "round2",
+      "source": "/Users/anuragprasad/Documents/GitHub/NLP_Sentiment_Ambiguity_New/data/dynasent-main.zip",
+      "label_order": [
+        "negative",
+        "neutral",
+        "positive",
+        "mixed"
+      ],
+      "split_rows_before_filtering": {
+        "train": 18535,
+        "dev": 720,
+        "test": 720
+      },
+      "train_rows_before_filtering": 18535,
+      "train_overlap_rows_removed": 1,
+      "train_duplicate_rows_removed": 14,
+      "train_rows_after_filtering": 18520,
+      "dev_rows_unchanged": 720,
+      "test_rows_unchanged": 720,
+      "train_filter_enabled": true,
+      "train_deduplication_enabled": true,
+      "null_gold_label_rows": {
+        "train": 2136,
+        "dev": 0,
+        "test": 0
+      },
+      "mixed_vote_rows": {
+        "train": 7784,
+        "dev": 102,
+        "test": 115
+      }
+    },
+    "eligible_train_rows_with_gold": 16386,
+    "test_rows_used": 720,
+    "eval_sample_seed": 20261014,
+    "budget": 200,
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "conditions": [
+      "majority_ce",
+      "human_soft_targets",
+      "label_smoothing"
+    ],
+    "matching_policy": "the first three conditions use identical examples sampled from the non-null gold-label training pool; the null-augmented condition, when enabled, uses a different training composition",
+    "null_soft_fraction_requested": null,
+    "null_augmented_condition_note": null,
+    "effective_learning_rate": {
+      "parameter": "tiny_bert_lr",
+      "value": 2e-05,
+      "optimizer": "torch.optim.AdamW"
+    }
+  }
+}

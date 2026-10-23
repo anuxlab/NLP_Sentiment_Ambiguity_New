@@ -1,0 +1,3 @@
+# Supporting DynaSent model comparison
+
+Only the `majority_ce` condition is used for model-family learning curves, so the TF-IDF and Tiny-BERT curves have the same target objective. Each round is analyzed separately. Error bands show standard error across available seeds, not test-example bootstrap uncertainty. Ranking changes are descriptive and are reported only where both backends have observations at the same budget. VADER is a zero-shot reference with no training budget and should be added as a horizontal baseline only when plotting a metric it shares. This supporting comparison does not replace the primary human-ambiguity/soft-target analysis.

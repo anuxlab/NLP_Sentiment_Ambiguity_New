@@ -1,0 +1,78 @@
+name: DynaSent Supporting Model Comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: DynaSent rounds to evaluate
+        required: true
+        default: both
+        type: choice
+        options: [both, round1, round2]
+      budgets:
+        description: Comma-separated label budgets
+        required: true
+        default: "25,50,100,200,300"
+        type: string
+      seeds:
+        description: Comma-separated seeds (keep small for this supporting comparison)
+        required: true
+        default: "0,1,2"
+        type: string
+      run_vader:
+        description: Also run zero-shot VADER baseline
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Validate source and tests
+        run: |
+          python -m py_compile src/*.py scripts/*.py tests/*.py
+          pytest -q tests
+      - name: Run matched-budget model matrix
+        env:
+          INPUT_ROUNDS: ${{ inputs.rounds }}
+          INPUT_BUDGETS: ${{ inputs.budgets }}
+          INPUT_SEEDS: ${{ inputs.seeds }}
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra BUDGETS <<< "$INPUT_BUDGETS"
+          IFS=',' read -ra SEEDS <<< "$INPUT_SEEDS"
+          if [[ "$INPUT_ROUNDS" == "both" ]]; then ROUNDS=(round1 round2); else ROUNDS=("$INPUT_ROUNDS"); fi
+          for round in "${ROUNDS[@]}"; do
+            for backend in tfidf tiny-bert; do
+              for budget in "${BUDGETS[@]}"; do
+                python src/run_dynasent_experiments.py \
+                  --data data/dynasent-main.zip --round "$round" --backend "$backend" \
+                  --checkpoint results/models/mlm_final --budget "$budget" --eval-size 0 \
+                  --seeds "${SEEDS[@]}" --epochs 10 --device cpu \
+                  --out-dir "results/supporting_model_comparison/$round/$backend/budget_$budget"
+              done
+            done
+          done
+      - name: Run VADER reference
+        if: ${{ inputs.run_vader }}
+        run: python src/run_dynasent_vader_baseline.py --round "${{ inputs.rounds }}" --out-dir results/supporting_model_comparison/vader
+      - name: Aggregate curves and rankings
+        run: python scripts/analyze_dynasent_supporting_matrix.py --results-root results/supporting_model_comparison
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dynasent-supporting-comparison
+          path: results/supporting_model_comparison/
+          if-no-files-found: error
+          retention-days: 30
