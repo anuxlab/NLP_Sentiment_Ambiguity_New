@@ -1,0 +1,124 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[top=1.05cm,bottom=1.05cm,left=1.35cm,right=1.35cm]{geometry}
+\usepackage{amsmath,booktabs,microtype,xcolor,enumitem,pgfplots}
+\usepackage[colorlinks=true,allcolors=blue!45!black]{hyperref}
+\usepackage[compact]{titlesec}
+\pgfplotsset{compat=1.18}
+\setlength{\textfloatsep}{5pt plus 1pt minus 2pt}
+\titleformat{\section}{\bfseries\normalsize}{\thesection.}{0.3em}{}
+\titlespacing*{\section}{0pt}{3pt}{1.5pt}
+\setlength{\parindent}{1em}\setlength{\parskip}{2pt}
+\setlist{nosep,leftmargin=1.2em}
+\pagestyle{plain}
+\title{\vspace{-1.0cm}\textbf{Same Words, Different Bets}\\[-1pt]
+\large Human vote distributions for sentiment classification under scarce labels and ambiguity}
+\author{Anurag Prasad (2521504) \quad Hillol Pratim Kalita (2521511)\\
+Shahid Wazid Siddique (2521533) \quad Ashish Mayangmayum (2521521)}
+\date{}
+\begin{document}
+\maketitle
+\vspace{-0.65cm}
+
+\section{Abstract and Introduction}
+Sentiment labels can be costly to obtain, and ambiguous texts may elicit reasonable disagreement among readers. Majority voting collapses those judgments to one class, discarding information about how annotators differ. Motivated by sentiment classification under scarce labels and ambiguity, this report asks whether retaining human vote proportions improves learning when only a small labeled sample is available. Prior work has examined human label variation and methods that use annotator disagreement [2--5]; this report does not claim soft-target learning as new. It presents a focused Tiny-BERT pilot on DynaSent Round 1 and Round 2, comparing empirical human vote distributions, majority-label cross-entropy (CE), generic label smoothing, and an exploratory null-augmented condition. Across both rounds, human soft targets yield lower test Jensen--Shannon (JS) divergence than majority CE, although the effect is small and secondary metrics are mixed.
+
+\section{Problem Statement}
+\textbf{Focused research question.} Under a scarce budget of 100 labeled examples, does training Tiny-BERT against empirical human vote proportions improve alignment with held-out human vote distributions compared with training against a single majority label? Is the direction consistent across the two DynaSent rounds? Here, ambiguity is operationalized as disagreement in the observed annotator votes. JS divergence directly scores predicted probabilities against those votes; hard-label accuracy alone cannot distinguish a reasonable minority judgment from an error. This focused question addresses the project motivation through the completed pilot, and the claim is limited to this model, budget, and dataset setup.
+
+\section{Methodology}
+For item $i$, the soft target is $q_{ic}=v_{ic}/\sum_c v_{ic}$, where $v_{ic}$ is the count of votes for class $c$. The experiment uses one model: Tiny-BERT [6], initialized from the project's local masked-language-model checkpoint and fitted with a four-class classification head. A pretrained contextual encoder makes this a relevant test of supervision with only 100 labeled examples. Keeping the same model and training protocol across matched conditions makes the supervision target, rather than architecture, the intended difference in the primary comparison. Majority CE uses a one-hot majority target, human-soft training minimizes cross-entropy to $q_i$, and label smoothing uses a generic smoothed target [7]; these are training conditions, not separate models. The exploratory null-augmented condition replaces half of its training sample with examples lacking a unique majority, so its data composition differs. Each round uses seeds 0--4, ten epochs, and the audited Tiny-BERT learning rate $2\times10^{-5}$; the supplied audit does not state the label-smoothing coefficient. Primary evaluation is mean per-example JS divergence in bits (lower is better) [8]. Secondary metrics are soft Brier score, accuracy, macro-F1, and ten-bin expected calibration error (ECE). The artifact audit verified all 40 condition/seed records and recomputed metrics from 86,400 prediction rows.
+
+\section{Experimental Results}
+Figure~1 shows the paired primary contrast, $\Delta JS=JS_{\text{soft}}-JS_{\text{majority CE}}$; negative values favor human soft targets. Both round-specific effects are negative, with paired test-example bootstrap intervals below zero and Holm-adjusted sign-flip $p=0.00020$ for each test in the two-test primary family.
+
+\begin{center}
+\begin{tikzpicture}
+\begin{axis}[
+  width=0.90\linewidth,height=4.0cm,
+  xmin=-0.006,xmax=0.001,ymin=0.5,ymax=2.5,
+  xtick={-0.006,-0.004,-0.002,0},
+  ytick={1,2},yticklabels={Round 2,Round 1},
+  xlabel={Mean paired $\Delta JS$ (bits)},
+  tick label style={font=\scriptsize},
+  label style={font=\scriptsize},
+  xmajorgrids=true,grid style={gray!25},
+  axis lines=left,
+  clip=false
+]
+\addplot[black,dashed,thin,no marks] coordinates {(0,0.5) (0,2.5)};
+\addplot[blue!70!black,very thick,no marks] coordinates {(-0.004899,2) (-0.003459,2)};
+\addplot[blue!70!black,only marks,mark=*,mark size=2pt] coordinates {(-0.004174,2)};
+\addplot[orange!80!black,very thick,no marks] coordinates {(-0.004374,1) (-0.003604,1)};
+\addplot[orange!80!black,only marks,mark=*,mark size=2pt] coordinates {(-0.003991,1)};
+\end{axis}
+\end{tikzpicture}
+
+{\scriptsize Figure 1: Points are mean paired effects; horizontal lines are paired test-example bootstrap 95\% CIs. The dashed line marks no difference. Intervals condition on the five fitted seeds.}
+\end{center}
+\clearpage
+
+\noindent Table~1 reports mean $\pm$ sample SD across five seeds on each full test set. JS, Brier, and ECE are lower-is-better; accuracy and macro-F1 are higher-is-better.
+
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llccccc}
+\toprule
+Round & Condition & JS $\downarrow$ & Macro-F1 $\uparrow$ & Accuracy $\uparrow$ & Brier $\downarrow$ & ECE $\downarrow$\\
+\midrule
+R1 & Majority CE & $0.3967\pm0.0029$ & $0.1310\pm0.0079$ & $0.3339\pm0.0022$ & $0.5240\pm0.0131$ & $0.1118\pm0.0520$\\
+R1 & Human soft & $0.3926\pm0.0034$ & $0.1382\pm0.0089$ & $0.3323\pm0.0047$ & $0.5104\pm0.0050$ & $0.0776\pm0.0334$\\
+R1 & Label smoothing & $0.3962\pm0.0028$ & $0.1313\pm0.0084$ & $0.3337\pm0.0027$ & $0.5210\pm0.0104$ & $0.1035\pm0.0482$\\
+R1 & Null-augmented & $0.3940\pm0.0036$ & $0.1383\pm0.0158$ & $0.3344\pm0.0043$ & $0.5107\pm0.0106$ & $0.0756\pm0.0369$\\
+R2 & Majority CE & $0.4400\pm0.0073$ & $0.1733\pm0.0234$ & $0.3069\pm0.0343$ & $0.5687\pm0.0113$ & $0.0299\pm0.0162$\\
+R2 & Human soft & $0.4360\pm0.0057$ & $0.1765\pm0.0296$ & $0.3189\pm0.0246$ & $0.5633\pm0.0100$ & $0.0325\pm0.0212$\\
+R2 & Label smoothing & $0.4397\pm0.0069$ & $0.1741\pm0.0231$ & $0.3069\pm0.0320$ & $0.5682\pm0.0106$ & $0.0276\pm0.0145$\\
+R2 & Null-augmented & $0.4333\pm0.0056$ & $0.2116\pm0.0341$ & $0.3108\pm0.0161$ & $0.5566\pm0.0085$ & $0.0194\pm0.0122$\\
+\bottomrule
+\end{tabular}
+
+{\scriptsize Table 1: The null-augmented condition changes training composition and is not a loss-only comparison.}
+\end{center}
+
+\begin{center}\footnotesize
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lrrr}
+\toprule
+Round & $\Delta JS$ & Paired bootstrap 95\% CI & Holm-adjusted $p$\\
+\midrule
+Round 1 & $-0.004174$ & $[-0.004899,-0.003459]$ & $0.00020$\\
+Round 2 & $-0.003991$ & $[-0.004374,-0.003604]$ & $0.00020$\\
+\bottomrule
+\end{tabular}
+
+{\scriptsize Table 2: Intervals use 10,000 paired test-example resamples after averaging across the five fixed seeds; they do not measure run-to-run uncertainty. Sign-flip tests used 10,000 replicates; Holm correction covers the two primary round comparisons.}
+\end{center}
+
+Human soft targets improve mean JS and Brier in both rounds. Macro-F1 is also higher in both, while accuracy is slightly lower in Round 1 and higher in Round 2; ECE changes in opposite directions. The null-augmented condition has the lowest Round 2 JS, but its unmatched sample makes that result exploratory.
+
+\section{Source and Type of Data}
+DynaSent was selected because both rounds provide item-level annotator votes, which are needed to train on empirical vote proportions and evaluate predictions against held-out human distributions [1].
+\begin{itemize}
+\item \textbf{Round 1 (Yelp):} English Yelp text with crowd sentiment judgments. After training-only overlap removal and deduplication, the split contains 94,260 training, 3,600 development, and 3,600 test examples.
+\item \textbf{Round 2 (Dynabench):} English text from DynaSent's Dynabench round, also with crowd judgments. The corresponding split contains 18,520 training, 720 development, and 720 test examples.
+\end{itemize}
+Both rounds use the project's four vote classes (negative, neutral, positive, mixed); evaluation uses all 3,600 Round 1 and 720 Round 2 test items per seed. The original benchmark description is ternary, so this project-specific mapping should be documented when relating results to that source. The rounds are analyzed separately to check whether the pilot result is consistent across two DynaSent collections under the same model and protocol; their results are not pooled.
+
+\section{Conclusion}
+In this five-seed, 100-example Tiny-BERT pilot, human vote-distribution targets produce a small, consistent reduction in JS divergence on the two evaluated DynaSent rounds. The evidence is exploratory because the results were inspected, only five fitted seeds are available, and the bootstrap and sign-flip analyses do not capture new-run variability. Hard-label and calibration results are mixed, and the null-augmented condition changes sample composition. Stronger conclusions require a prospective rerun with more seeds and complete reporting of the training configuration, including the label-smoothing coefficient.
+
+\clearpage
+\section*{References}
+\small
+\begin{enumerate}[leftmargin=*,itemsep=3pt]
+\item Potts, C., Wu, Z., Geiger, A., and Kiela, D. (2021). DynaSent: A Dynamic Benchmark for Sentiment Analysis. In \textit{Proceedings of the 59th Annual Meeting of the Association for Computational Linguistics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers)}, 2388--2404. \url{https://aclanthology.org/2021.acl-long.186/}
+\item Fornaciari, T., Uma, A., Paun, S., Plank, B., Hovy, D., and Poesio, M. (2021). Beyond Black \& White: Leveraging Annotator Disagreement via Soft-Label Multi-Task Learning. In \textit{Proceedings of the 2021 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies}, 2591--2597. \url{https://doi.org/10.18653/v1/2021.naacl-main.204}
+\item Plank, B. (2022). The ``Problem'' of Human Label Variation: On Ground Truth in Data, Modeling and Evaluation. In \textit{Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing}, 10671--10682. \url{https://doi.org/10.18653/v1/2022.emnlp-main.731}
+\item Davani, A. M., Díaz, M., and Prabhakaran, V. (2022). Dealing with Disagreements: Looking Beyond the Majority Vote in Subjective Annotations. \textit{Transactions of the Association for Computational Linguistics}, 10, 92--110. \url{https://doi.org/10.1162/tacl_a_00449}
+\item Rodríguez-Barroso, N., Martínez Cámara, E., Camacho Collados, J., Luzón, M. V., and Herrera, F. (2024). Federated Learning for Exploiting Annotators' Disagreements in Natural Language Processing. \textit{Transactions of the Association for Computational Linguistics}, 12, 630--648. \url{https://doi.org/10.1162/tacl_a_00664}
+\item Jiao, X., Yin, Y., Shang, L., Jiang, X., Chen, X., Li, L., Wang, F., and Liu, Q. (2020). TinyBERT: Distilling BERT for Natural Language Understanding. In \textit{Findings of the Association for Computational Linguistics: EMNLP 2020}, 4163--4174. \url{https://doi.org/10.18653/v1/2020.findings-emnlp.372}
+\item Müller, R., Kornblith, S., and Hinton, G. (2019). When Does Label Smoothing Help? In \textit{Advances in Neural Information Processing Systems}, 32, 4696--4705. \href{https://proceedings.neurips.cc/paper/2019/hash/f1748d6b0fd9d439f71450117eba2725-Abstract.html}{NeurIPS proceedings paper}.
+\item Lin, J. (1991). Divergence Measures Based on the Shannon Entropy. \textit{IEEE Transactions on Information Theory}, 37(1), 145--151. \url{https://doi.org/10.1109/18.61115}
+\end{enumerate}
+\end{document}

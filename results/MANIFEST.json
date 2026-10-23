@@ -1,0 +1,24 @@
+{
+  "package_title": "Same Words, Different Bets \u2014 consolidated results",
+  "source_archive": "Archive.zip supplied in this conversation",
+  "canonical_sources": [
+    "04_Results/primary_js_results.csv",
+    "04_Results/dataset_condition_summary.csv",
+    "04_Results/paired_uncertainty_summary.csv",
+    "04_Results/RESULTS_SUMMARY.md"
+  ],
+  "primary_comparisons": 15,
+  "negative_js_deltas": 15,
+  "holm_significant_comparisons": [
+    {
+      "dataset": "DynaSent Round 2",
+      "budget": 300,
+      "adjusted_p": 0.029296875
+    }
+  ],
+  "notes": [
+    "New report and appended presentation slides use controlled TF-IDF results from canonical CSVs.",
+    "Existing Tiny-BERT report and original presentation are preserved as source artifacts.",
+    "Do not combine TF-IDF and Tiny-BERT metrics into one numerical table."
+  ]
+}
